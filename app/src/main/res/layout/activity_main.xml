@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="32dp">
+
+    <!-- Ảnh chiếc điện thoại -->
+    <ImageView
+        android:id="@+id/phoneImage"
+        android:layout_width="250dp"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:src="@drawable/hinhnen"
+        android:scaleType="fitCenter"
+        android:layout_marginBottom="0dp"
+        android:layout_marginTop="0dp"/>
+
+    <!-- Logo + Tên ứng dụng -->
+    <LinearLayout
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="8dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content">
+
+        <!--Logo ứng dụng -->
+        <ImageView
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:src="@drawable/icon" />
+
+        <TextView
+            android:text="Locket"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:textSize="35sp"
+            android:layout_marginStart="8dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <TextView
+        android:text="Ảnh trực tiếp từ bạn bè,\nngay trên màn hình chính"
+        android:textColor="#DDDDDD"
+        android:textSize="20sp"
+        android:gravity="center"
+        android:textStyle="bold"
+        android:layout_marginBottom="15dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <!-- Nút Tạo tài khoản -->
+    <Button
+        android:id="@+id/btnCreateAccount"
+        style="@style/Widget.AppCompat.Button"
+        android:text="Tạo một tài khoản"
+        android:textAllCaps="false"
+        android:textStyle="bold"
+        android:textColor="#000000"
+        android:textSize="20sp"
+
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/rounded_button"
+        android:layout_marginBottom="12dp"
+        android:backgroundTint="@color/yellow_button"
+
+        />
+
+    <!-- Nút Đăng nhập -->
+    <Button
+        android:id="@+id/btnLogin"
+        style="@style/Widget.AppCompat.Button"
+        android:text="Đăng nhập"
+        android:textStyle="bold"
+        android:textAllCaps="false"
+        android:textColor="#FFFFFF"
+        android:textSize="20sp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/rounded_button"
+        android:backgroundTint="#000000"/>
+</LinearLayout>

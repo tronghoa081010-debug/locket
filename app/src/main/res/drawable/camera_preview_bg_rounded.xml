@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <!-- Nền đen đậm hoặc xám đậm -->
+    <solid android:color="#0D0D0D" />
+
+    <!-- Bo tròn y chang khung ngoài -->
+    <corners android:radius="32dp" />
+</shape>

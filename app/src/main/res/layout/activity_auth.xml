@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:padding="32dp"
+    android:gravity="center_horizontal"
+    android:background="#000000"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Nút back -->
+    <ImageButton
+        android:id="@+id/btnBack"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@drawable/round_button_bg"
+        android:src="@drawable/ic_arrow_back"
+        android:layout_gravity="start"
+        android:layout_marginTop="15dp"/>
+
+    <!-- Tiêu đề -->
+    <TextView
+        android:layout_marginTop="80dp"
+        android:text="Email của bạn là gì?"
+        android:textColor="#FFFFFF"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <!-- Ô nhập email -->
+    <EditText
+        android:id="@+id/editEmail"
+        android:layout_width="match_parent"
+        android:layout_height="55dp"
+        android:layout_marginTop="24dp"
+        android:background="@drawable/rounded_edittext"
+        android:hint="Địa chỉ email"
+        android:padding="16dp"
+        android:textColorHint="#AAAAAA"
+        android:textColor="#FFFFFF"
+        android:inputType="textEmailAddress" />
+
+    <!-- Điều khoản -->
+    <TextView
+        android:layout_marginTop="60dp"
+        android:text="Thông qua việc chạm vào nút Tiếp tục, bạn đồng ý với các Điều khoản dịch vụ và Chính sách quyền riêng tư của chúng tôi"
+        android:textSize="14sp"
+        android:textColor="#BBBBBB"
+        android:gravity="center"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <!-- Nút tiếp tục -->
+    <Button
+        android:id="@+id/btnContinue"
+        android:layout_width="match_parent"
+        android:layout_height="55dp"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/rounded_button_disabled"
+        android:backgroundTint="@color/yellow_button"
+        android:enabled="false"
+        android:text="Tiếp tục"
+        android:textColor="#808080" />
+
+</LinearLayout>

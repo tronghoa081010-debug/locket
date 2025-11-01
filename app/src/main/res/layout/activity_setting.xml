@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#050505"
+    tools:context=".SettingActivity">
+
+    <LinearLayout
+        android:id="@+id/btnFriends"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@id/btnLogOut"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/setting"
+        android:orientation="horizontal"
+        android:paddingStart="32dp"
+        android:paddingEnd="32dp"
+        android:paddingTop="24dp"
+        android:paddingBottom="24dp"
+        android:focusable="true">
+    </LinearLayout>
+    <Button
+        android:id="@+id/btnLogOut"
+        android:text="Đăng xuất"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textStyle="bold"
+        android:layout_centerInParent="true"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="@drawable/btn_square_bg"
+        android:backgroundTint="@color/yellow_button"
+        android:padding="12dp"
+        android:textColor="@color/black_900"
+        app:tint="#FFFFFF">
+    </Button>
+
+</RelativeLayout>

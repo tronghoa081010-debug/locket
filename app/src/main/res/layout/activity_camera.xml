@@ -1,0 +1,243 @@
+
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/topButtonGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent"
+        android:layout_marginTop="64dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:layout_editor_absoluteY="37dp">
+
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/centerGuidelineTop"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintGuide_percent="0.5" />
+
+        <ImageButton
+            android:id="@+id/btnSettings"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:layout_marginEnd="48dp"
+            android:contentDescription="Settings"
+            android:scaleType="centerInside"
+            android:background="@android:color/transparent"
+            android:src="@drawable/setting"
+            app:layout_constraintBottom_toBottomOf="@id/btnFriends"
+            app:layout_constraintEnd_toStartOf="@id/btnFriends"
+            app:layout_constraintTop_toTopOf="@id/btnFriends" />
+
+        <ImageButton
+            android:id="@+id/btnFriends"
+            android:layout_width="120dp"
+            android:layout_height="60dp"
+            android:src="@drawable/friend"
+            android:background="@drawable/btn_square_bg"
+            android:contentDescription="Friends"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="@id/centerGuidelineTop"
+            app:layout_constraintStart_toStartOf="@id/centerGuidelineTop"
+            app:layout_constraintTop_toTopOf="parent"
+            android:backgroundTint="@color/yellow_button"
+            />
+
+        <ImageButton
+            android:id="@+id/btnChat"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:layout_marginStart="48dp"
+            android:contentDescription="Chat"
+            android:scaleType="centerInside"
+            android:background="@android:color/transparent"
+            android:src="@drawable/message"
+            app:layout_constraintBottom_toBottomOf="@id/btnFriends"
+            app:layout_constraintStart_toEndOf="@id/btnFriends"
+            app:layout_constraintTop_toTopOf="@id/btnFriends" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideline_camera_bottom"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.57" />
+    <!-- Khung viền trắng nằm bên ngoài -->
+    <FrameLayout
+        android:id="@+id/cameraFrameBorder"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginHorizontal="16dp"
+        android:background="@drawable/camera_frame_border"
+        app:layout_constraintTop_toBottomOf="@id/topButtonGroup"
+        app:layout_constraintBottom_toTopOf="@id/guideline_camera_bottom"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintDimensionRatio="1:1">
+
+        <!-- Khung preview thật sự nằm trong này -->
+        <FrameLayout
+            android:id="@+id/cameraFrameContainer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_margin="2dp"
+            android:background="@drawable/camera_preview_bg_rounded"
+            android:clipToOutline="true"
+            android:outlineProvider="background">
+
+            <androidx.camera.view.PreviewView
+                android:id="@+id/previewView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                app:scaleType="fillCenter" />
+
+            <!-- Ảnh chụp -->
+            <ImageView
+                android:id="@+id/photoPreview"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:visibility="gone" />
+
+            <!-- Caption -->
+            <EditText
+                android:id="@+id/etCaption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:layout_margin="16dp"
+                android:background="@drawable/camera_preview_bg_rounded"
+                android:hint="Thêm một tin nhắn"
+                android:padding="12dp"
+                android:textColor="#FFFFFF"
+                android:textColorHint="#88FFFFFF"
+                android:inputType="textMultiLine"
+                android:minHeight="40dp"
+                android:maxLines="6"
+                android:maxLength="36"
+                android:gravity="center_horizontal"
+                android:overScrollMode="ifContentScrolls"
+                android:visibility="gone" />
+        </FrameLayout>
+    </FrameLayout>
+
+
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/captureControls"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="130dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/cameraFrameBorder"
+        app:layout_constraintVertical_bias="0.15">
+
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/centerGuidelineBottom"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintGuide_percent="0.5" />
+
+        <ImageButton
+
+            android:id="@+id/btnFlash"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:layout_marginEnd="48dp"
+            android:contentDescription="Flash"
+            android:src="@drawable/flash"
+            android:scaleType="centerInside"
+            android:background="@android:color/transparent"
+            app:layout_constraintBottom_toBottomOf="@id/capturePostFrame"
+            app:layout_constraintEnd_toStartOf="@id/capturePostFrame"
+            app:layout_constraintTop_toTopOf="@id/capturePostFrame" />
+        <ImageButton
+            android:id="@+id/btnCancel"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:layout_marginEnd="48dp"
+            android:contentDescription="Cancel"
+            android:src="@drawable/delete"
+            android:scaleType="centerInside"
+            android:background="@android:color/transparent"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@id/capturePostFrame"
+            app:layout_constraintEnd_toStartOf="@id/capturePostFrame"
+            app:layout_constraintTop_toTopOf="@id/capturePostFrame" />
+        <FrameLayout
+            android:id="@+id/capturePostFrame"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:layout_marginStart="-40dp"
+            android:layout_marginEnd="-40dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="@id/centerGuidelineBottom"
+            app:layout_constraintStart_toStartOf="@id/centerGuidelineBottom"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageButton
+                android:id="@+id/btnCapture"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="Capture"
+                android:scaleType="centerInside"
+                android:background="@android:color/transparent"
+                android:src="@drawable/capture" />
+
+            <ImageButton
+                android:id="@+id/btnPost"
+                android:layout_width="120dp"
+                android:layout_height="120dp"
+                android:layout_gravity="center"
+                android:contentDescription="Post"
+                android:scaleType="centerInside"
+                android:background="@android:color/transparent"
+                android:src="@drawable/post"
+                android:visibility="gone" />
+        </FrameLayout>
+
+
+
+        <ImageButton
+            android:id="@+id/btnSwitchCamera"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:layout_marginStart="48dp"
+            android:contentDescription="Switch camera"
+            android:src="@drawable/switchcamera"
+            android:scaleType="centerInside"
+            android:background="@android:color/transparent"
+            app:layout_constraintBottom_toBottomOf="@id/capturePostFrame"
+            app:layout_constraintStart_toEndOf="@id/capturePostFrame"
+            app:layout_constraintTop_toTopOf="@id/capturePostFrame" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <Button
+        android:id="@+id/btnHistory"
+        android:layout_width="120dp"
+        android:layout_height="60dp"
+        android:layout_marginBottom="72dp"
+        android:background="@drawable/btn_square_bg"
+        android:text="Lịch sử "
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.498"
+        app:layout_constraintStart_toStartOf="parent"
+        android:textColor="@color/white"/>
+</androidx.constraintlayout.widget.ConstraintLayout>

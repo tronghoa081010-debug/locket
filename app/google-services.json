@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "812740536585",
+    "project_id": "madappdatabase",
+    "storage_bucket": "madappdatabase.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:812740536585:android:587b0ac630fb44a2634bd8",
+        "android_client_info": {
+          "package_name": "com.example.locketbaseapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCPTHl_NKwq83aOwOGBwZgLhZTtsnfIDiA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
