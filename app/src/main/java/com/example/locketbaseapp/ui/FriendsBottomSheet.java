@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.graphics.Color;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -60,6 +61,11 @@ public class FriendsBottomSheet extends BottomSheetDialogFragment {
     private static final int MAX_INITIAL_FRIENDS = 3;
 
     @SuppressLint("MissingInflatedId")
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setStyle(STYLE_NORMAL, R.style.Theme_LocketClone_BottomSheet);
+    }
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -136,6 +142,14 @@ public class FriendsBottomSheet extends BottomSheetDialogFragment {
         loadBlockedUsers();
 
         return view;
+    }
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+        // Set background transparent cho dialog để bỏ rìa trắng
+        View parent = (View) view.getParent();
+        parent.setBackgroundColor(Color.TRANSPARENT);
     }
 
     private void loadFriendsCount() {
