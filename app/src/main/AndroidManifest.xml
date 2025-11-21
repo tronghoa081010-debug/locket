@@ -45,6 +45,11 @@
         <activity
             android:name=".SettingActivity"
         />
+        <activity android:name=".ChatListActivity"
+        />
+        <activity android:name=".ChatActivity"
+            android:windowSoftInputMode="adjustResize"
+        />
     </application>
 
 

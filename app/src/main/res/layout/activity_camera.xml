@@ -65,6 +65,7 @@
             app:layout_constraintStart_toEndOf="@id/btnFriends"
             app:layout_constraintTop_toTopOf="@id/btnFriends" />
 
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.constraintlayout.widget.Guideline

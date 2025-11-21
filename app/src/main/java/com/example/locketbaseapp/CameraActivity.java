@@ -2,6 +2,7 @@ package com.example.locketbaseapp;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.util.Log;
 import android.widget.EditText;
 
 import android.widget.Button;
@@ -26,11 +27,19 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.example.locketbaseapp.ui.FriendsBottomSheet;
-
+import com.example.locketbaseapp.model.User;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FieldValue;
+import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -46,7 +55,7 @@ public class CameraActivity extends AppCompatActivity {
     private ImageButton btnCancel;
 
     private ImageButton btnFriends;
-
+    private ImageButton btnChat;
     //
     private PreviewView previewView;
     private boolean isUploading = false;
@@ -124,6 +133,11 @@ public class CameraActivity extends AppCompatActivity {
         } else {
             ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS);
         }
+        btnChat = findViewById(R.id.btnChat);
+        btnChat.setOnClickListener(v -> {
+            Intent intent = new Intent(this, ChatListActivity.class);
+            startActivity(intent);
+        });
     }
 
     private boolean allPermissionsGranted() {
@@ -146,13 +160,22 @@ public class CameraActivity extends AppCompatActivity {
                         .build();
                 preview.setSurfaceProvider(previewView.getSurfaceProvider());
 
+                // ← FIX: Kiểm tra null trước khi lấy rotation
+                int rotation;
+                if (previewView.getDisplay() != null) {
+                    rotation = previewView.getDisplay().getRotation();
+                } else {
+                    rotation = getWindowManager().getDefaultDisplay().getRotation();
+                }
+
                 imageCapture = new ImageCapture.Builder()
-                        .setTargetRotation(previewView.getDisplay().getRotation())
+                        .setTargetRotation(rotation)  // ← Dùng biến rotation
                         .setFlashMode(ImageCapture.FLASH_MODE_OFF)
                         .build();
 
                 camera = cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture);
             } catch (Exception e) {
+                Log.e("CameraActivity", "Error starting camera", e);
                 e.printStackTrace();
             }
         }, ContextCompat.getMainExecutor(this));
@@ -227,13 +250,17 @@ public class CameraActivity extends AppCompatActivity {
                     Toast.makeText(this, "Không có ảnh để upload!", Toast.LENGTH_SHORT).show());
             return;
         }
-        //
+
         String caption = etCaption.getText().toString().trim();
-        //
+        String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+
+        Log.d("CameraActivity", "=== START UPLOAD ===");
+        Log.d("CameraActivity", "Current User ID: " + currentUserId);
+
         cameraExecutor.execute(() -> {
             try {
+                // 1. Upload ảnh lên Supabase Storage
                 OkHttpClient client = new OkHttpClient();
-
                 RequestBody body = RequestBody.create(photoFile, MediaType.parse("image/jpeg"));
                 String fileName = "photo_" + System.currentTimeMillis() + ".jpg";
                 String uploadUrl = SUPABASE_URL + "/storage/v1/object/" + BUCKET_NAME + "/" + fileName;
@@ -250,29 +277,68 @@ public class CameraActivity extends AppCompatActivity {
 
                 if (response.isSuccessful()) {
                     String publicUrl = SUPABASE_URL + "/storage/v1/object/public/" + BUCKET_NAME + "/" + fileName;
-                    //
-                    OkHttpClient dbClient = new OkHttpClient();
-                    MediaType JSON = MediaType.parse("application/json; charset=utf-8");
-                    String jsonBody = "{ \"image_url\": \"" + publicUrl + "\",\"caption\":\""+caption+"\", \"user_id\": \"anonymous\" }";
 
-                    RequestBody dbBody = RequestBody.create(jsonBody, JSON);
-                    Request dbRequest = new Request.Builder()
-                            .url(SUPABASE_URL + "/rest/v1/posts")
-                            .addHeader("Authorization", "Bearer " + SUPABASE_KEY)
-                            .addHeader("apikey", SUPABASE_KEY)
-                            .addHeader("Content-Type", "application/json")
-                            .post(dbBody)
-                            .build();
+                    Log.d("CameraActivity", "✅ Image uploaded: " + publicUrl);
 
-                    Response dbResponse = dbClient.newCall(dbRequest).execute();
-                    dbResponse.close();
-                    //
-                    runOnUiThread(() -> {
-                        Toast.makeText(this, "Upload thành công:\n" + publicUrl, Toast.LENGTH_LONG).show();
-                        resetUI();
-                    });
+                    // 2. Lấy danh sách bạn bè từ SUBCOLLECTION
+                    FirebaseFirestore db = FirebaseFirestore.getInstance();
+
+                    db.collection("users")
+                            .document(currentUserId)
+                            .collection("friends")
+                            .get()
+                            .addOnSuccessListener(friendsSnapshot -> {
+
+                                Log.d("CameraActivity", "Friends snapshot size: " + friendsSnapshot.size());
+
+                                List<String> visibleTo = new ArrayList<>();
+
+                                // Thêm tất cả bạn bè
+                                for (DocumentSnapshot friendDoc : friendsSnapshot.getDocuments()) {
+                                    String friendId = friendDoc.getId();
+                                    Log.d("CameraActivity", "Friend found: " + friendId);
+                                    visibleTo.add(friendId);
+                                }
+
+                                // Thêm chính mình
+                                visibleTo.add(currentUserId);
+
+                                Log.d("CameraActivity", "Final visibleTo list: " + visibleTo);
+                                Log.d("CameraActivity", "VisibleTo size: " + visibleTo.size());
+
+                                // 3. Tạo post trong Firestore
+                                Map<String, Object> postData = new HashMap<>();
+                                postData.put("userId", currentUserId);
+                                postData.put("imageUrl", publicUrl);
+                                postData.put("caption", caption);
+                                postData.put("timestamp", FieldValue.serverTimestamp());
+                                postData.put("visibleTo", visibleTo);
+
+                                Log.d("CameraActivity", "Creating post with data: " + postData);
+
+                                db.collection("posts").add(postData)
+                                        .addOnSuccessListener(docRef -> {
+                                            Log.d("CameraActivity", "✅ Post created successfully: " + docRef.getId());
+                                            runOnUiThread(() -> {
+                                                Toast.makeText(this, "Đăng ảnh thành công!", Toast.LENGTH_SHORT).show();
+                                                resetUI();
+                                            });
+                                        })
+                                        .addOnFailureListener(e -> {
+                                            Log.e("CameraActivity", "❌ Error creating post", e);
+                                            runOnUiThread(() ->
+                                                    Toast.makeText(this, "Lỗi lưu post: " + e.getMessage(), Toast.LENGTH_LONG).show());
+                                        });
+                            })
+                            .addOnFailureListener(e -> {
+                                Log.e("CameraActivity", "❌ Error loading friends", e);
+                                runOnUiThread(() ->
+                                        Toast.makeText(this, "Lỗi lấy danh sách bạn bè: " + e.getMessage(), Toast.LENGTH_LONG).show());
+                            });
+
                 } else {
                     String errorBody = response.body() != null ? response.body().string() : "unknown";
+                    Log.e("CameraActivity", "❌ Upload failed: " + response.code() + " - " + errorBody);
                     runOnUiThread(() ->
                             Toast.makeText(this, "Upload thất bại (" + response.code() + "): " + errorBody,
                                     Toast.LENGTH_LONG).show());
@@ -280,12 +346,12 @@ public class CameraActivity extends AppCompatActivity {
 
                 response.close();
             } catch (Exception e) {
+                Log.e("CameraActivity", "❌ Exception during upload", e);
                 runOnUiThread(() ->
                         Toast.makeText(this, "Lỗi upload: " + e.getMessage(), Toast.LENGTH_LONG).show());
                 e.printStackTrace();
             }
         });
-
     }
     private void resetUI() {
         photoPreview.setVisibility(View.GONE);

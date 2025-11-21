@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <!-- Ảnh fullscreen -->
+    <ImageView
+        android:id="@+id/ivPost"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:contentDescription="Post image" />
+
+    <!-- Overlay gradient bottom -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:layout_alignParentBottom="true"
+        android:background="@drawable/gradient_bottom" />
+
+    <!-- Caption overlay (nếu có) -->
+    <TextView
+        android:id="@+id/tvCaption"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:background="@drawable/bg_caption_overlay"
+        android:paddingHorizontal="24dp"
+        android:paddingVertical="12dp"
+        android:text="Caption here"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
+    <!-- User info ở dưới -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="100dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="16dp">
+
+        <ImageView
+            android:id="@+id/ivUserAvatar"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:src="@drawable/ic_person_circle" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginStart="12dp">
+
+            <TextView
+                android:id="@+id/tvUserName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="User Name"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="2g"
+                android:textColor="#CCCCCC"
+                android:textSize="14sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Reaction bar (giống ảnh mẫu) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="16dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="16dp"
+        android:background="@drawable/bg_reaction_bar">
+
+        <EditText
+            android:id="@+id/etQuickReply"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:hint="Gửi tin nhắn..."
+            android:textColorHint="#888888"
+            android:textColor="#FFFFFF"
+            android:paddingStart="16dp"
+            android:paddingEnd="8dp" />
+
+        <TextView
+            android:id="@+id/btnReaction1"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:text="🔥"
+            android:textSize="24sp"
+            android:gravity="center"
+            android:clickable="true" />
+
+        <TextView
+            android:id="@+id/btnReaction2"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:text="😍"
+            android:textSize="24sp"
+            android:gravity="center"
+            android:clickable="true" />
+
+        <TextView
+            android:id="@+id/btnReaction3"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:text="💛"
+            android:textSize="24sp"
+            android:gravity="center"
+            android:clickable="true" />
+
+        <ImageView
+            android:id="@+id/btnMoreReactions"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_emoji"
+            android:scaleType="centerInside"
+            android:clickable="true" />
+    </LinearLayout>
+
+</RelativeLayout>

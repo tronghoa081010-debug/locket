@@ -9,7 +9,6 @@ public class User {
     public String displayName;
     public String photoUrl;
 
-    // THÊM CÁC TRƯỜNG NÀY VÀO
     public List<String> friends = new ArrayList<>();
     public List<String> incomingRequests = new ArrayList<>();
     public List<String> sentRequests = new ArrayList<>();
@@ -18,7 +17,6 @@ public class User {
     public User() {
     }
 
-    // Constructor đầy đủ (tùy chọn)
     public User(String uid, String email, String displayName, String photoUrl) {
         this.uid = uid;
         this.email = email;
@@ -26,7 +24,41 @@ public class User {
         this.photoUrl = photoUrl;
     }
 
-    // THÊM CÁC GETTER METHODS
+    // ← THÊM CÁC GETTER/SETTER CHO FIRESTORE
+
+    public String getUid() {
+        return uid;
+    }
+
+    public void setUid(String uid) {
+        this.uid = uid;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
+
+    public String getPhotoUrl() {
+        return photoUrl;
+    }
+
+    public void setPhotoUrl(String photoUrl) {
+        this.photoUrl = photoUrl;
+    }
+
+    // ← THÊM GETTER CHO CÁC METHOD CŨ (để tương thích)
     public String getUserId() {
         return uid;
     }
@@ -39,45 +71,24 @@ public class User {
         return photoUrl;
     }
 
-    public String getEmail() {
-        return email;
-    }
-
     public List<String> getFriends() {
         return friends;
-    }
-
-    public List<String> getIncomingRequests() {
-        return incomingRequests;
-    }
-
-    public List<String> getSentRequests() {
-        return sentRequests;
-    }
-
-    // THÊM CÁC SETTER METHODS (nếu cần)
-    public void setUid(String uid) {
-        this.uid = uid;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public void setDisplayName(String displayName) {
-        this.displayName = displayName;
-    }
-
-    public void setPhotoUrl(String photoUrl) {
-        this.photoUrl = photoUrl;
     }
 
     public void setFriends(List<String> friends) {
         this.friends = friends;
     }
 
+    public List<String> getIncomingRequests() {
+        return incomingRequests;
+    }
+
     public void setIncomingRequests(List<String> incomingRequests) {
         this.incomingRequests = incomingRequests;
+    }
+
+    public List<String> getSentRequests() {
+        return sentRequests;
     }
 
     public void setSentRequests(List<String> sentRequests) {
