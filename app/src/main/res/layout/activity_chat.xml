@@ -77,11 +77,26 @@
         android:paddingVertical="8dp"
         android:elevation="8dp">
 
+        <!-- Icon Sticker -->
+        <ImageButton
+            android:id="@+id/btnSticker"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_emoji"
+            android:tint="#FF6B9D"
+            android:contentDescription="Stickers"
+            android:scaleType="centerInside" />
+
         <EditText
             android:id="@+id/etMessage"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_toStartOf="@id/btnSend"
+            android:layout_toStartOf="@id/btnSelfDestruct"
+            android:layout_toEndOf="@id/btnSticker"
+            android:layout_marginStart="8dp"
             android:layout_marginEnd="8dp"
             android:layout_centerVertical="true"
             android:background="@drawable/bg_input_message"
@@ -94,6 +109,20 @@
             android:inputType="textCapSentences|textMultiLine"
             android:imeOptions="actionSend"
             android:gravity="start|center_vertical" />
+
+        <!-- Self-Destruct Icon -->
+        <ImageButton
+            android:id="@+id/btnSelfDestruct"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_toStartOf="@id/btnSend"
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_timer"
+            android:tint="#FFB74D"
+            android:contentDescription="Self-destruct"
+            android:scaleType="centerInside" />
 
         <ImageButton
             android:id="@+id/btnSend"

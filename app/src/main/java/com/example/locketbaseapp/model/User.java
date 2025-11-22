@@ -1,5 +1,6 @@
 package com.example.locketbaseapp.model;
 
+import com.google.firebase.firestore.PropertyName;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -8,6 +9,16 @@ public class User {
     public String email;
     public String displayName;
     public String photoUrl;
+    
+    // 🔥 FIX: Map Firestore field names that might differ
+    @PropertyName("profileImageUrl")
+    public String profileImageUrl;
+    
+    @PropertyName("userId")
+    public String userId;
+    
+    @PropertyName("username")
+    public String username;
 
     public List<String> friends = new ArrayList<>();
     public List<String> incomingRequests = new ArrayList<>();

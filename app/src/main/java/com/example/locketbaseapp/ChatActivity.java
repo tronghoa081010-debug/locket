@@ -43,7 +43,7 @@ public class ChatActivity extends AppCompatActivity {
 
     private RecyclerView rvMessages;
     private EditText etMessage;
-    private ImageButton btnSend, btnBack, btnMenu;
+    private ImageButton btnSend, btnBack, btnMenu, btnSticker, btnSelfDestruct;
     private ImageView ivFriendAvatar;
     private TextView tvFriendName;
     private MessageAdapter adapter;
@@ -57,6 +57,10 @@ public class ChatActivity extends AppCompatActivity {
     private String friendPhoto;
 
     private ListenerRegistration messageListener;
+    
+    // Self-destruct timer fields
+    private boolean isSelfDestructEnabled = false;
+    private long selfDestructDuration = 0; // in milliseconds
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -84,6 +88,8 @@ public class ChatActivity extends AppCompatActivity {
             // Setup UI
             btnBack = findViewById(R.id.btnBack);
             btnMenu = findViewById(R.id.btnMenu);
+            btnSticker = findViewById(R.id.btnSticker);
+            btnSelfDestruct = findViewById(R.id.btnSelfDestruct);
             ivFriendAvatar = findViewById(R.id.ivFriendAvatar);
             tvFriendName = findViewById(R.id.tvFriendName);
             rvMessages = findViewById(R.id.rvMessages);
@@ -94,6 +100,12 @@ public class ChatActivity extends AppCompatActivity {
 
             // ← MENU: Xóa bạn, Báo cáo, Chặn
             btnMenu.setOnClickListener(v -> showMenuDialog());
+            
+            // ← STICKER: Mở danh sách sticker từ Supabase
+            btnSticker.setOnClickListener(v -> showStickerPicker());
+            
+            // ← SELF-DESTRUCT: Toggle timer
+            btnSelfDestruct.setOnClickListener(v -> toggleSelfDestructMode());
 
             tvFriendName.setText(friendName);
 
@@ -283,16 +295,35 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     private void createChatIfNotExists() {
+        Log.d(TAG, "🔧 createChatIfNotExists() called");
+        Log.d(TAG, "   Chat ID: " + chatId);
+        
         db.collection("chats").document(chatId).get()
                 .addOnSuccessListener(doc -> {
                     if (!doc.exists()) {
+                        Log.d(TAG, "📝 Chat doesn't exist yet, creating...");
                         Map<String, Object> chatData = new HashMap<>();
                         chatData.put("participants", Arrays.asList(currentUserId, friendId));
                         chatData.put("lastMessage", "");
                         chatData.put("lastMessageTime", FieldValue.serverTimestamp());
 
-                        db.collection("chats").document(chatId).set(chatData);
+                        db.collection("chats").document(chatId).set(chatData)
+                                .addOnSuccessListener(aVoid -> {
+                                    Log.d(TAG, "✅ Chat created successfully");
+                                    Log.d(TAG, "   - Participants: [" + currentUserId + ", " + friendId + "]");
+                                })
+                                .addOnFailureListener(e -> {
+                                    Log.e(TAG, "❌ Error creating chat in createChatIfNotExists");
+                                    Log.e(TAG, "   Error: " + e.getMessage());
+                                });
+                    } else {
+                        Log.d(TAG, "✅ Chat already exists");
+                        Log.d(TAG, "   - Participants: " + doc.get("participants"));
                     }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "❌ Error checking chat in createChatIfNotExists");
+                    Log.e(TAG, "   Error: " + e.getMessage());
                 });
     }
 
@@ -360,9 +391,19 @@ public class ChatActivity extends AppCompatActivity {
     private void sendMessage() {
         String text = etMessage.getText().toString().trim();
 
+        Log.d(TAG, "═══════════════════════════════════════");
+        Log.d(TAG, "📤 sendMessage() called");
+        Log.d(TAG, "   Text: '" + text + "'");
+        Log.d(TAG, "   Chat ID: " + chatId);
+        Log.d(TAG, "   Current User ID: " + currentUserId);
+        Log.d(TAG, "   Friend ID: " + friendId);
+
         if (text.isEmpty()) {
+            Log.w(TAG, "⚠️ Message is empty, ignoring");
             return;
         }
+
+        Log.d(TAG, "✅ Message not empty, proceeding with send");
 
         Map<String, Object> messageData = new HashMap<>();
         messageData.put("senderId", currentUserId);
@@ -371,21 +412,107 @@ public class ChatActivity extends AppCompatActivity {
         messageData.put("isRead", false);
         messageData.put("imageUrl", "");
 
+        // 🔥 ADD SELF-DESTRUCT FIELDS IF ENABLED
+        if (isSelfDestructEnabled && selfDestructDuration > 0) {
+            long expiresAt = System.currentTimeMillis() + selfDestructDuration;
+            messageData.put("expiresAt", expiresAt);
+            messageData.put("selfDestructDuration", selfDestructDuration);
+            Log.d(TAG, "⏰ Self-destruct enabled: " + (selfDestructDuration / 1000) + " seconds");
+        }
+
+        Log.d(TAG, "📊 Message data prepared:");
+        Log.d(TAG, "   - senderId: " + currentUserId);
+        Log.d(TAG, "   - text: " + text);
+        if (isSelfDestructEnabled) {
+            Log.d(TAG, "   - Self-destruct: " + (selfDestructDuration / 1000) + "s");
+        }
+        
+        // 🔥 VERIFY CHAT EXISTS BEFORE ADDING MESSAGE
+        db.collection("chats").document(chatId).get()
+                .addOnSuccessListener(chatDoc -> {
+                    if (!chatDoc.exists()) {
+                        Log.e(TAG, "❌ CRITICAL: Chat document does NOT exist!");
+                        Log.e(TAG, "   - Chat ID: " + chatId);
+                        Log.e(TAG, "   Creating chat now...");
+                        
+                        Map<String, Object> chatData = new HashMap<>();
+                        chatData.put("participants", Arrays.asList(currentUserId, friendId));
+                        chatData.put("lastMessage", "");
+                        chatData.put("lastMessageTime", FieldValue.serverTimestamp());
+                        
+                        db.collection("chats").document(chatId).set(chatData)
+                                .addOnSuccessListener(aVoid -> {
+                                    Log.d(TAG, "✅ Chat created, now sending message...");
+                                    sendMessageToExistingChat(messageData, text);
+                                })
+                                .addOnFailureListener(e -> {
+                                    Log.e(TAG, "❌ Failed to create chat");
+                                    Log.e(TAG, "   Error: " + e.getMessage());
+                                });
+                    } else {
+                        Log.d(TAG, "✅ Chat exists, participants: " + chatDoc.get("participants"));
+                        sendMessageToExistingChat(messageData, text);
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "❌ Error checking chat existence");
+                    Log.e(TAG, "   Error class: " + e.getClass().getSimpleName());
+                    Log.e(TAG, "   Error: " + e.getMessage());
+                    if (e.getMessage().contains("PERMISSION_DENIED")) {
+                        Log.e(TAG, "❌ PERMISSION_DENIED on read /chats/" + chatId);
+                    }
+                });
+    }
+    
+    private void sendMessageToExistingChat(Map<String, Object> messageData, String text) {
+        Log.d(TAG, "📮 Adding message to existing chat...");
+        
         db.collection("chats").document(chatId)
                 .collection("messages")
                 .add(messageData)
                 .addOnSuccessListener(docRef -> {
+                    Log.d(TAG, "───────────────────────────────────────");
+                    Log.d(TAG, "✅ Message saved successfully");
+                    Log.d(TAG, "   - Message ID: " + docRef.getId());
+                    Log.d(TAG, "───────────────────────────────────────");
+
                     Map<String, Object> updateData = new HashMap<>();
                     updateData.put("lastMessage", text);
                     updateData.put("lastMessageTime", FieldValue.serverTimestamp());
 
-                    db.collection("chats").document(chatId).update(updateData);
+                    Log.d(TAG, "🔄 Updating chat metadata...");
+                    db.collection("chats").document(chatId).update(updateData)
+                            .addOnSuccessListener(aVoid -> {
+                                Log.d(TAG, "✅ Chat metadata updated");
+                                Log.d(TAG, "═══════════════════════════════════════");
 
-                    etMessage.setText("");
-                    hideKeyboard();
+                                etMessage.setText("");
+                                hideKeyboard();
+                            })
+                            .addOnFailureListener(e -> {
+                                Log.e(TAG, "❌ Error updating chat metadata");
+                                Log.e(TAG, "   Error: " + e.getMessage());
+                                Toast.makeText(this, "Lỗi cập nhật tin nhắn", Toast.LENGTH_SHORT).show();
+                            });
                 })
                 .addOnFailureListener(e -> {
-                    Toast.makeText(this, "Lỗi gửi tin nhắn", Toast.LENGTH_SHORT).show();
+                    Log.e(TAG, "───────────────────────────────────────");
+                    Log.e(TAG, "❌ sendMessage() FAILED on .add()");
+                    Log.e(TAG, "   - Error class: " + e.getClass().getSimpleName());
+                    Log.e(TAG, "   - Error message: " + e.getMessage());
+                    Log.e(TAG, "   - Chat ID: " + chatId);
+                    Log.e(TAG, "   - Path: /chats/" + chatId + "/messages");
+                    Log.e(TAG, "   - Sender ID: " + messageData.get("senderId"));
+
+                    if (e.getMessage() != null && e.getMessage().contains("PERMISSION_DENIED")) {
+                        Log.e(TAG, "❌ PERMISSION_DENIED - Check:");
+                        Log.e(TAG, "      1. Firestore rules for /chats/{chatId}/messages");
+                        Log.e(TAG, "      2. Chat participants array");
+                        Log.e(TAG, "      3. User authentication status");
+                    }
+
+                    Log.e(TAG, "───────────────────────────────────────");
+                    Toast.makeText(this, "Lỗi gửi tin nhắn: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
     }
 
@@ -403,6 +530,156 @@ public class ChatActivity extends AppCompatActivity {
         InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
         if (imm != null && getCurrentFocus() != null) {
             imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 🎨 STICKER FEATURE - Open sticker list from Supabase
+    // ═══════════════════════════════════════════════════════════════
+    private void showStickerPicker() {
+        Log.d(TAG, "🎨 showStickerPicker() called");
+        
+        // 🔗 PLACEHOLDER URL - User to replace with actual Supabase bucket URL
+        // Example format:
+        // https://tjvvywmzihpzmgdzvcof.supabase.co/storage/v1/object/public/stickers/
+        
+        String stickerUrl = "https://example-placeholder.supabase.co/storage/v1/object/public/stickers/";
+        
+        // For now, show a dialog with sticker options
+        // TODO: Fetch actual stickers list from Supabase API
+        // You can use Retrofit or HttpURLConnection to call:
+        // GET https://[YOUR-SUPABASE-URL]/storage/v1/object/list/stickers
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("📦 Chọn Sticker");
+        builder.setMessage("💡 Chức năng sticker từ Supabase đang được triển khai.\n\n" +
+                "Hãy thay đổi URL placeholder trong code:\n" +
+                "showStickerPicker() method\n\n" +
+                "Khi hoàn thành, sticker sẽ hiển thị dưới dạng lưới.");
+        
+        builder.setPositiveButton("Đóng", (dialog, which) -> {
+            Log.d(TAG, "Sticker picker dialog closed");
+            dialog.dismiss();
+        });
+        
+        builder.show();
+        
+        // 📝 IMPLEMENTATION NOTES FOR USER:
+        // 1. Get Supabase project URL and API key
+        // 2. Create a "stickers" bucket in Supabase Storage
+        // 3. Upload sticker images (PNG/WebP format recommended)
+        // 4. Fetch sticker list using Supabase SDK or REST API
+        // 5. Display in GridView or RecyclerView
+        // 6. On selection: send as message (either as image URL or sticker code)
+        
+        // Example Supabase fetch code (to be implemented):
+        /*
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl("https://[YOUR-SUPABASE-URL]/storage/v1/")
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+        
+        StorageApi api = retrofit.create(StorageApi.class);
+        Call<List<Sticker>> call = api.listStickers("Bearer " + supabaseToken);
+        call.enqueue(new Callback<List<Sticker>>() {
+            @Override
+            public void onResponse(Call<List<Sticker>> call, Response<List<Sticker>> response) {
+                if (response.isSuccessful()) {
+                    List<Sticker> stickers = response.body();
+                    // Display stickers in dialog
+                }
+            }
+            
+            @Override
+            public void onFailure(Call<List<Sticker>> call, Throwable t) {
+                Log.e(TAG, "Failed to fetch stickers", t);
+            }
+        });
+        */
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ⏰ SELF-DESTRUCT FEATURE - Toggle and select timer duration
+    // ═══════════════════════════════════════════════════════════════
+    private void toggleSelfDestructMode() {
+        Log.d(TAG, "⏰ toggleSelfDestructMode() called");
+        Log.d(TAG, "   Current state: " + (isSelfDestructEnabled ? "ON" : "OFF"));
+        
+        if (isSelfDestructEnabled) {
+            // Already on - clicking again disables it
+            isSelfDestructEnabled = false;
+            selfDestructDuration = 0;
+            updateSelfDestructButton();
+            Toast.makeText(this, "❌ Tự hủy: TẮT", Toast.LENGTH_SHORT).show();
+            Log.d(TAG, "   → Self-destruct disabled");
+        } else {
+            // Show dialog to select duration
+            showSelfDestructDialog();
+        }
+    }
+
+    private void showSelfDestructDialog() {
+        Log.d(TAG, "⏰ showSelfDestructDialog() called");
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("⏳ Chọn Thời Gian Tự Hủy");
+        builder.setMessage("Tin nhắn sẽ tự động xóa sau khoảng thời gian chọn:");
+        
+        // Time options and their durations in milliseconds
+        CharSequence[] items = {
+            "⚡ 5 giây",
+            "🕐 30 giây",
+            "📍 1 phút",
+            "📌 5 phút",
+            "⏱️ 30 phút",
+            "🕰️ 1 giờ",
+            "⏳ 12 giờ",
+            "📅 24 giờ"
+        };
+        
+        long[] durations = {
+            5 * 1000,                    // 5 seconds
+            30 * 1000,                   // 30 seconds
+            1 * 60 * 1000,               // 1 minute
+            5 * 60 * 1000,               // 5 minutes
+            30 * 60 * 1000,              // 30 minutes
+            1 * 60 * 60 * 1000,          // 1 hour
+            12 * 60 * 60 * 1000,         // 12 hours
+            24 * 60 * 60 * 1000          // 24 hours
+        };
+        
+        builder.setSingleChoiceItems(items, -1, (dialog, which) -> {
+            selfDestructDuration = durations[which];
+            isSelfDestructEnabled = true;
+            updateSelfDestructButton();
+            
+            String durationText = items[which].toString();
+            Log.d(TAG, "✅ Self-destruct timer set to: " + durationText + " (" + selfDestructDuration + "ms)");
+            Toast.makeText(ChatActivity.this, "⏰ Tự hủy: " + durationText, Toast.LENGTH_SHORT).show();
+            
+            dialog.dismiss();
+        });
+        
+        builder.setNegativeButton("❌ Hủy", (dialog, which) -> {
+            Log.d(TAG, "Self-destruct dialog cancelled");
+            dialog.dismiss();
+        });
+        
+        builder.show();
+    }
+
+    private void updateSelfDestructButton() {
+        Log.d(TAG, "🔄 updateSelfDestructButton() - State: " + (isSelfDestructEnabled ? "ON" : "OFF"));
+        
+        if (isSelfDestructEnabled) {
+            // Visual indication that self-destruct is active
+            btnSelfDestruct.setAlpha(1.0f);  // Full opacity - ACTIVE
+            btnSelfDestruct.setColorFilter(getResources().getColor(android.R.color.holo_orange_light), 
+                    android.graphics.PorterDuff.Mode.SRC_IN);
+        } else {
+            // Visual indication that self-destruct is inactive
+            btnSelfDestruct.setAlpha(0.5f);  // Half opacity - INACTIVE
+            btnSelfDestruct.clearColorFilter();
         }
     }
 

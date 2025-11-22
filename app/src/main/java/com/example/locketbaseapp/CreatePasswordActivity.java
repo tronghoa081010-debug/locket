@@ -9,6 +9,11 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FieldValue;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 public class CreatePasswordActivity extends AppCompatActivity {
     private static final String TAG = "LoginActivity";
@@ -67,14 +72,34 @@ public class CreatePasswordActivity extends AppCompatActivity {
 
                             String uid = firebaseUser.getUid();
 
-
+                            // 🔥 FIX: Create complete user profile with all required fields
                             User newUser = new User(uid, email, name, "");
+                            
+                            // Add essential fields that are required
+                            Map<String, Object> userProfile = new HashMap<>();
+                            userProfile.put("uid", uid);
+                            userProfile.put("email", email);
+                            userProfile.put("displayName", name);
+                            userProfile.put("photoUrl", "");
+                            userProfile.put("createdAt", FieldValue.serverTimestamp());
+                            userProfile.put("friends", new ArrayList<>());
+                            userProfile.put("incomingRequests", new ArrayList<>());
+                            userProfile.put("sentRequests", new ArrayList<>());
+                            
+                            Log.d(TAG, "📝 Creating user profile with fields:");
+                            Log.d(TAG, "   - UID: " + uid);
+                            Log.d(TAG, "   - Email: " + email);
+                            Log.d(TAG, "   - Name: " + name);
+                            Log.d(TAG, "   - Friends: []");
+                            Log.d(TAG, "   - createdAt: serverTimestamp");
 
                             // Lưu user document vào Firestore
-                            db.collection("users").document(uid).set(newUser)
+                            db.collection("users").document(uid).set(userProfile)
                                     .addOnSuccessListener(aVoid -> {
 
-                                        Log.d(TAG, "User document created successfully");
+                                        Log.d(TAG, "✅ User profile created successfully!");
+                                        Log.d(TAG, "   - Profile saved to /users/" + uid);
+                                        Log.d(TAG, "   - All fields initialized (friends, requests, etc)");
                                         Toast.makeText(this, "Tạo tài khoản thành công!", Toast.LENGTH_SHORT).show();
 
 
@@ -83,15 +108,18 @@ public class CreatePasswordActivity extends AppCompatActivity {
                                     })
                                     .addOnFailureListener(e -> {
 
-                                        Log.e(TAG, "Lỗi khi lưu vào Firestore", e);
+                                        Log.e(TAG, "❌ CRITICAL: Lỗi khi lưu vào Firestore");
+                                        Log.e(TAG, "   - Error: " + e.getMessage());
+                                        Log.e(TAG, "   - UID that failed: " + uid);
+                                        Log.e(TAG, "   - Path: /users/" + uid);
                                         Toast.makeText(this, "Lỗi khi lưu dữ liệu: " + e.getMessage(), Toast.LENGTH_LONG).show();
 
 
                                         firebaseUser.delete().addOnCompleteListener(deleteTask -> {
                                             if (deleteTask.isSuccessful()) {
-                                                Log.d(TAG, "User (Auth) deleted successfully after Firestore failure.");
+                                                Log.d(TAG, "✅ User (Auth) deleted successfully after Firestore failure.");
                                             } else {
-                                                Log.e(TAG, "Failed to delete User (Auth) after Firestore failure.", deleteTask.getException());
+                                                Log.e(TAG, "❌ Failed to delete User (Auth) after Firestore failure.", deleteTask.getException());
                                             }
                                         });
                                     });

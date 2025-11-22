@@ -232,7 +232,11 @@ public class FriendsBottomSheet extends BottomSheetDialogFragment {
 
     private void loadFriends() {
         String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        Log.d("FriendsBottomSheet", "Loading friends for user: " + currentUserId);
+        
+        Log.d("FriendsBottomSheet", "═══════════════════════════════════════");
+        Log.d("FriendsBottomSheet", "📥 loadFriends() started");
+        Log.d("FriendsBottomSheet", "   User ID: " + currentUserId);
+        Log.d("FriendsBottomSheet", "═══════════════════════════════════════");
 
         FirebaseFirestore db = FirebaseFirestore.getInstance();
 
@@ -241,18 +245,41 @@ public class FriendsBottomSheet extends BottomSheetDialogFragment {
                 .collection("friends")
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
-                    Log.d("FriendsBottomSheet", "Friends loaded: " + queryDocumentSnapshots.size());
+                    Log.d("FriendsBottomSheet", "───────────────────────────────────────");
+                    Log.d("FriendsBottomSheet", "✅ Friends query SUCCESS");
+                    Log.d("FriendsBottomSheet", "   - Snapshot size: " + queryDocumentSnapshots.size());
+                    Log.d("FriendsBottomSheet", "   - From cache: " + queryDocumentSnapshots.getMetadata().isFromCache());
+
                     allFriends.clear();
                     for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
                         User friend = document.toObject(User.class);
-                        Log.d("FriendsBottomSheet", "Friend: " + friend.displayName);
-                        allFriends.add(friend);
+                        if (friend != null) {
+                            friend.uid = document.getId();  // ✅ Ensure UID is set
+                            Log.d("FriendsBottomSheet", "   ✅ Friend loaded: " + friend.displayName + " (UID: " + friend.uid + ")");
+                            allFriends.add(friend);
+                        } else {
+                            Log.w("FriendsBottomSheet", "   ⚠️ Friend is null for doc: " + document.getId());
+                        }
                     }
+                    
+                    Log.d("FriendsBottomSheet", "✅ Total friends: " + allFriends.size());
+                    Log.d("FriendsBottomSheet", "───────────────────────────────────────");
+                    
                     updateDisplayedFriends();
                     updateTitle();
                 })
                 .addOnFailureListener(e -> {
-                    Log.e("FriendsBottomSheet", "Error loading friends", e);
+                    Log.e("FriendsBottomSheet", "───────────────────────────────────────");
+                    Log.e("FriendsBottomSheet", "❌ Friends query FAILED");
+                    Log.e("FriendsBottomSheet", "   - Error class: " + e.getClass().getSimpleName());
+                    Log.e("FriendsBottomSheet", "   - Error message: " + e.getMessage());
+                    Log.e("FriendsBottomSheet", "   - Path: /users/" + currentUserId + "/friends");
+
+                    if (e.getMessage() != null && e.getMessage().contains("PERMISSION_DENIED")) {
+                        Log.e("FriendsBottomSheet", "❌ PERMISSION_DENIED - Check Firestore rules!");
+                    }
+
+                    Log.e("FriendsBottomSheet", "───────────────────────────────────────");
                     Toast.makeText(getContext(), "Lỗi tải danh sách bạn bè: " + e.getMessage(), Toast.LENGTH_LONG).show();
                 });
     }
@@ -261,25 +288,45 @@ public class FriendsBottomSheet extends BottomSheetDialogFragment {
         String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
         FirebaseFirestore db = FirebaseFirestore.getInstance();
 
+        Log.d("FriendsBottomSheet", "═══════════════════════════════════════");
+        Log.d("FriendsBottomSheet", "📨 loadFriendRequests() started");
+        Log.d("FriendsBottomSheet", "   User ID: " + currentUserId);
+
         db.collection("users")
                 .document(currentUserId)
                 .collection("friendRequests")
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
+                    Log.d("FriendsBottomSheet", "───────────────────────────────────────");
+                    Log.d("FriendsBottomSheet", "✅ Friend requests query SUCCESS");
+                    Log.d("FriendsBottomSheet", "   - Count: " + queryDocumentSnapshots.size());
+
                     friendRequests.clear();
                     for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
                         User user = document.toObject(User.class);
-                        friendRequests.add(user);
+                        if (user != null) {
+                            user.uid = document.getId();
+                            Log.d("FriendsBottomSheet", "   ✅ Request from: " + user.displayName + " (UID: " + user.uid + ")");
+                            friendRequests.add(user);
+                        }
                     }
 
                     if (!friendRequests.isEmpty()) {
                         friendRequestSection.setVisibility(View.VISIBLE);
                         requestAdapter.notifyDataSetChanged();
+                        Log.d("FriendsBottomSheet", "✅ Friend requests section visible");
                     } else {
                         friendRequestSection.setVisibility(View.GONE);
+                        Log.d("FriendsBottomSheet", "ℹ️ No friend requests");
                     }
+
+                    Log.d("FriendsBottomSheet", "───────────────────────────────────────");
                 })
                 .addOnFailureListener(e -> {
+                    Log.e("FriendsBottomSheet", "───────────────────────────────────────");
+                    Log.e("FriendsBottomSheet", "❌ Friend requests query FAILED");
+                    Log.e("FriendsBottomSheet", "   - Error: " + e.getMessage());
+                    Log.e("FriendsBottomSheet", "───────────────────────────────────────");
                     Toast.makeText(getContext(), "Lỗi tải yêu cầu kết bạn: " + e.getMessage(), Toast.LENGTH_LONG).show();
                 });
     }
@@ -289,29 +336,45 @@ public class FriendsBottomSheet extends BottomSheetDialogFragment {
         String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
         FirebaseFirestore db = FirebaseFirestore.getInstance();
 
-        Log.d("FriendsBottomSheet", "Loading sent requests for user: " + currentUserId);
+        Log.d("FriendsBottomSheet", "═══════════════════════════════════════");
+        Log.d("FriendsBottomSheet", "📤 loadSentRequests() started");
+        Log.d("FriendsBottomSheet", "   User ID: " + currentUserId);
 
         db.collection("users")
                 .document(currentUserId)
                 .collection("sentRequests")
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
+                    Log.d("FriendsBottomSheet", "───────────────────────────────────────");
+                    Log.d("FriendsBottomSheet", "✅ Sent requests query SUCCESS");
+                    Log.d("FriendsBottomSheet", "   - Count: " + queryDocumentSnapshots.size());
+
                     sentRequests.clear();
                     for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
                         User user = document.toObject(User.class);
-                        Log.d("FriendsBottomSheet", "Sent request to: " + user.displayName);
-                        sentRequests.add(user);
+                        if (user != null) {
+                            user.uid = document.getId();
+                            Log.d("FriendsBottomSheet", "   ✅ Sent request to: " + user.displayName + " (UID: " + user.uid + ")");
+                            sentRequests.add(user);
+                        }
                     }
 
                     if (!sentRequests.isEmpty()) {
                         sentRequestsSection.setVisibility(View.VISIBLE);
                         sentAdapter.notifyDataSetChanged();
+                        Log.d("FriendsBottomSheet", "✅ Sent requests section visible");
                     } else {
                         sentRequestsSection.setVisibility(View.GONE);
+                        Log.d("FriendsBottomSheet", "ℹ️ No sent requests");
                     }
+
+                    Log.d("FriendsBottomSheet", "───────────────────────────────────────");
                 })
                 .addOnFailureListener(e -> {
-                    Log.e("FriendsBottomSheet", "Error loading sent requests", e);
+                    Log.e("FriendsBottomSheet", "───────────────────────────────────────");
+                    Log.e("FriendsBottomSheet", "❌ Sent requests query FAILED");
+                    Log.e("FriendsBottomSheet", "   - Error: " + e.getMessage());
+                    Log.e("FriendsBottomSheet", "───────────────────────────────────────");
                     Toast.makeText(getContext(), "Lỗi tải yêu cầu đã gửi: " + e.getMessage(), Toast.LENGTH_LONG).show();
                 });
     }

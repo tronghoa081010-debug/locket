@@ -13,6 +13,10 @@ public class Message {
     // ← THÊM 2 FIELD MỚI
     public Timestamp deliveredAt;  // Thời điểm tin nhắn đến
     public Timestamp readAt;       // Thời điểm đọc tin nhắn
+    
+    // 🔥 SELF-DESTRUCT FIELDS (Auto-delete message)
+    public Long expiresAt;                  // Timestamp khi tin nhắn tự hủy (milliseconds)
+    public Long selfDestructDuration;       // Thời gian tồn tại trước khi hủy (milliseconds)
 
     public Message() {}
 

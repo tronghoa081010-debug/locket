@@ -360,43 +360,88 @@ public class SearchActivity extends AppCompatActivity {
      * TÌM KIẾM NGƯỜI DÙNG
      */
     private void searchUsers(String q) {
-        if (currentUser == null) return;
+        if (currentUser == null) {
+            Log.e(TAG, "❌ currentUser is null!");
+            return;
+        }
         String myUid = currentUser.getUid();
 
-        Log.d(TAG, "Searching for: " + q);
+        Log.d(TAG, "═══════════════════════════════════════");
+        Log.d(TAG, "🔍 searchUsers() called");
+        Log.d(TAG, "   Query: '" + q + "'");
+        Log.d(TAG, "   Current User ID: " + myUid);
+        Log.d(TAG, "═══════════════════════════════════════");
 
         db.collection("users").limit(50).get().addOnSuccessListener(qs -> {
-            searchResults.clear();
+            Log.d(TAG, "───────────────────────────────────────");
+            Log.d(TAG, "✅ Query SUCCESS");
+            Log.d(TAG, "   - Total users in collection: " + qs.size());
 
+            searchResults.clear();
             int totalMatches = 0;
 
             for (DocumentSnapshot d : qs.getDocuments()) {
                 User u = d.toObject(User.class);
-                if (u == null) continue;
-                u.uid = d.getId();
+                if (u == null) {
+                    Log.w(TAG, "   ⚠️ User object is null for doc: " + d.getId());
+                    Log.w(TAG, "      Raw data from Firestore: " + d.getData());
+                    continue;
+                }
+
+                u.uid = d.getId();  // ✅ Ensure UID is set
 
                 String name = u.displayName != null ? u.displayName.toLowerCase() : "";
                 String email = u.email != null ? u.email.toLowerCase() : "";
 
+                Log.d(TAG, "   📋 Checking user: " + d.getId());
+                Log.d(TAG, "      - Name: " + (u.displayName != null ? u.displayName : "null"));
+                Log.d(TAG, "      - Email: " + (u.email != null ? u.email : "null"));
+                
+                // 🔥 DIAGNOSTIC: Show raw Firestore data if fields are missing
+                if ((u.displayName == null || u.displayName.isEmpty()) && 
+                    (u.email == null || u.email.isEmpty())) {
+                    Log.w(TAG, "      ⚠️ USER HAS NO DATA!");
+                    Log.w(TAG, "         Raw Firestore data: " + d.getData());
+                    Log.w(TAG, "         Doc exists: " + d.exists());
+                }
+
                 if (name.contains(q) || email.contains(q)) {
-                    if (myUid.equals(u.uid)) continue;
+                    if (myUid.equals(u.uid)) {
+                        Log.d(TAG, "      ℹ️ Skipping self");
+                        continue;
+                    }
+
+                    Log.d(TAG, "      ✅ MATCH FOUND!");
                     totalMatches++;
                     searchResults.add(u);
+                } else {
+                    Log.d(TAG, "      ✗ No match");
                 }
             }
 
-            Log.d(TAG, "Found " + totalMatches + " matches");
+            Log.d(TAG, "───────────────────────────────────────");
+            Log.d(TAG, "📊 Search results:");
+            Log.d(TAG, "   - Total matches: " + totalMatches);
+            Log.d(TAG, "   - Query time: " + qs.getMetadata().toString());
 
             if (searchResults.isEmpty()) {
+                Log.w(TAG, "⚠️ No results found for: " + q);
                 Toast.makeText(this, "Không tìm thấy kết quả", Toast.LENGTH_SHORT).show();
                 tvSearchResultsTitle.setVisibility(View.GONE);
             } else {
+                Log.d(TAG, "✅ Found " + searchResults.size() + " results");
                 tvSearchResultsTitle.setVisibility(View.VISIBLE);
-                // FIX 3: Không cần query lại, dùng cache
                 updateSearchAdapter();
             }
+
+            Log.d(TAG, "═══════════════════════════════════════");
         }).addOnFailureListener(e -> {
-            Log.e(TAG, "Search error", e);
+            Log.e(TAG, "───────────────────────────────────────");
+            Log.e(TAG, "❌ Search query FAILED");
+            Log.e(TAG, "   - Error class: " + e.getClass().getSimpleName());
+            Log.e(TAG, "   - Error message: " + e.getMessage());
+            Log.e(TAG, "───────────────────────────────────────");
+
             Toast.makeText(this, "Lỗi tìm kiếm: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         });
     }
@@ -406,6 +451,7 @@ public class SearchActivity extends AppCompatActivity {
      */
     private void sendFriendRequest(User targetUser) {
         if (currentUser == null) {
+            Log.e(TAG, "❌ Current user is null!");
             Toast.makeText(this, "Bạn chưa đăng nhập", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -413,43 +459,74 @@ public class SearchActivity extends AppCompatActivity {
         String myUid = currentUser.getUid();
         String targetUid = targetUser.uid;
 
+        Log.d(TAG, "═══════════════════════════════════════");
+        Log.d(TAG, "📨 sendFriendRequest() called");
+        Log.d(TAG, "   From: " + myUid);
+        Log.d(TAG, "   To: " + targetUid);
+        Log.d(TAG, "   Target name: " + targetUser.displayName);
+        Log.d(TAG, "═══════════════════════════════════════");
+
         if (blockedStatusMap.containsKey(targetUid) && blockedStatusMap.get(targetUid)) {
+            Log.w(TAG, "⚠️ Target user is blocked");
             Toast.makeText(this, "Bạn đã chặn người dùng này. Hãy gỡ chặn trước.", Toast.LENGTH_SHORT).show();
             return;
         }
 
         String status = userStatusMap.get(targetUid);
         if ("friend".equals(status)) {
+            Log.w(TAG, "⚠️ Already friends");
             Toast.makeText(this, "Đã là bạn bè rồi", Toast.LENGTH_SHORT).show();
             return;
         }
         if ("sent".equals(status)) {
+            Log.w(TAG, "⚠️ Request already sent");
             Toast.makeText(this, "Đã gửi yêu cầu trước đó", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        Log.d(TAG, "Sending friend request from " + myUid + " to " + targetUid);
+        Log.d(TAG, "✅ Pre-checks passed, loading current user...");
 
         db.collection("users").document(myUid).get()
                 .addOnSuccessListener(documentSnapshot -> {
+                    Log.d(TAG, "───────────────────────────────────────");
+                    Log.d(TAG, "✅ Loaded current user:");
+                    Log.d(TAG, "   - Doc exists: " + documentSnapshot.exists());
+
                     User myUser = documentSnapshot.toObject(User.class);
                     if (myUser == null) {
+                        Log.e(TAG, "❌ myUser is null even though doc exists!");
+                        Log.e(TAG, "   Doc data: " + documentSnapshot.getData());
                         Toast.makeText(this, "Không tìm thấy thông tin người dùng", Toast.LENGTH_SHORT).show();
                         return;
                     }
 
+                    Log.d(TAG, "✅ myUser object created:");
+                    Log.d(TAG, "   - UID: " + myUser.uid);
+                    Log.d(TAG, "   - Display name: " + myUser.displayName);
+                    Log.d(TAG, "   - Email: " + myUser.email);
+
+                    Log.d(TAG, "📝 Creating friend request in target's collection...");
                     db.collection("users")
                             .document(targetUid)
                             .collection("friendRequests")
                             .document(myUid)
                             .set(myUser)
                             .addOnSuccessListener(aVoid -> {
+                                Log.d(TAG, "✅ Friend request created in target's friendRequests");
+                                Log.d(TAG, "   Path: /users/" + targetUid + "/friendRequests/" + myUid);
+
+                                Log.d(TAG, "📝 Creating sent request in my collection...");
                                 db.collection("users")
                                         .document(myUid)
                                         .collection("sentRequests")
                                         .document(targetUid)
                                         .set(targetUser)
                                         .addOnSuccessListener(aVoid1 -> {
+                                            Log.d(TAG, "───────────────────────────────────────");
+                                            Log.d(TAG, "✅ sendFriendRequest() SUCCESS!");
+                                            Log.d(TAG, "   Path: /users/" + myUid + "/sentRequests/" + targetUid);
+                                            Log.d(TAG, "═══════════════════════════════════════");
+
                                             Toast.makeText(this, "Đã gửi yêu cầu kết bạn", Toast.LENGTH_SHORT).show();
 
                                             // Update status → "sent"
@@ -459,12 +536,47 @@ public class SearchActivity extends AppCompatActivity {
                                             }
 
                                             loadSentRequests();
+                                        })
+                                        .addOnFailureListener(e -> {
+                                            Log.e(TAG, "───────────────────────────────────────");
+                                            Log.e(TAG, "❌ Error creating sent request");
+                                            Log.e(TAG, "   Error class: " + e.getClass().getSimpleName());
+                                            Log.e(TAG, "   Error message: " + e.getMessage());
+                                            Log.e(TAG, "   Path: /users/" + myUid + "/sentRequests/" + targetUid);
+                                            Log.e(TAG, "───────────────────────────────────────");
+
+                                            Toast.makeText(this, "Lỗi gửi yêu cầu: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                                         });
                             })
                             .addOnFailureListener(e -> {
-                                Log.e(TAG, "Error sending request", e);
+                                Log.e(TAG, "───────────────────────────────────────");
+                                Log.e(TAG, "❌ Error creating friend request");
+                                Log.e(TAG, "   Error class: " + e.getClass().getSimpleName());
+                                Log.e(TAG, "   Error message: " + e.getMessage());
+                                Log.e(TAG, "   Path: /users/" + targetUid + "/friendRequests/" + myUid);
+
+                                if (e.getMessage() != null && e.getMessage().contains("PERMISSION_DENIED")) {
+                                    Log.e(TAG, "❌ PERMISSION_DENIED - Check Firestore rules!");
+                                    Log.e(TAG, "❌ Required: allow write to /users/{uid}/friendRequests");
+                                }
+
+                                Log.e(TAG, "───────────────────────────────────────");
                                 Toast.makeText(this, "Lỗi gửi yêu cầu: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                             });
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "───────────────────────────────────────");
+                    Log.e(TAG, "❌ Error loading current user");
+                    Log.e(TAG, "   Error class: " + e.getClass().getSimpleName());
+                    Log.e(TAG, "   Error message: " + e.getMessage());
+                    Log.e(TAG, "   Path: /users/" + myUid);
+
+                    if (e.getMessage() != null && e.getMessage().contains("PERMISSION_DENIED")) {
+                        Log.e(TAG, "❌ PERMISSION_DENIED - Cannot read current user profile!");
+                    }
+
+                    Log.e(TAG, "───────────────────────────────────────");
+                    Toast.makeText(this, "Không tìm thấy thông tin người dùng: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
     }
 
