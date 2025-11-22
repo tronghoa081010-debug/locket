@@ -147,7 +147,7 @@ public class ChatListActivity extends AppCompatActivity {
         try {
             db.collection("chats")
                     .whereArrayContains("participants", currentUserId)
-                    .get()
+                    .get(com.google.firebase.firestore.Source.SERVER)
                     .addOnSuccessListener(chatsSnapshot -> {
                         try {
                             Map<String, Chat> existingChats = new HashMap<>();

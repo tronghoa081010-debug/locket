@@ -321,31 +321,44 @@ public class CameraActivity extends AppCompatActivity {
 
                     Log.d("CameraActivity", "✅ Image uploaded: " + publicUrl);
 
-                    // 2. Lấy danh sách bạn bè từ SUBCOLLECTION
+                    // 2. Lấy danh sách bạn bè từ SUBCOLLECTION - USE SERVER SOURCE
                     FirebaseFirestore db = FirebaseFirestore.getInstance();
 
                     db.collection("users")
                             .document(currentUserId)
                             .collection("friends")
-                            .get()
+                            .get(com.google.firebase.firestore.Source.SERVER)
                             .addOnSuccessListener(friendsSnapshot -> {
 
                                 Log.d("CameraActivity", "Friends snapshot size: " + friendsSnapshot.size());
 
                                 List<String> visibleTo = new ArrayList<>();
 
+                                Log.d("CameraActivity", "📋 Processing " + friendsSnapshot.size() + " friends");
+
                                 // Thêm tất cả bạn bè
                                 for (DocumentSnapshot friendDoc : friendsSnapshot.getDocuments()) {
                                     String friendId = friendDoc.getId();
-                                    Log.d("CameraActivity", "Friend found: " + friendId);
+                                    Log.d("CameraActivity", "   ✓ Friend: " + friendId);
                                     visibleTo.add(friendId);
                                 }
 
                                 // Thêm chính mình
                                 visibleTo.add(currentUserId);
+                                Log.d("CameraActivity", "   ✓ Myself: " + currentUserId);
 
-                                Log.d("CameraActivity", "Final visibleTo list: " + visibleTo);
-                                Log.d("CameraActivity", "VisibleTo size: " + visibleTo.size());
+                                Log.d("CameraActivity", "📊 Final visibleTo: " + visibleTo);
+                                Log.d("CameraActivity", "📊 visibleTo.size: " + visibleTo.size());
+
+                                // ← VALIDATE: Ensure visibleTo has at least 1 member (self)
+                                if (visibleTo.isEmpty()) {
+                                    Log.e("CameraActivity", "❌ FATAL ERROR: visibleTo is EMPTY! Cannot create post");
+                                    runOnUiThread(() ->
+                                            Toast.makeText(this, "Lỗi: Không thể tạo bài viết", Toast.LENGTH_SHORT).show());
+                                    return;
+                                }
+
+                                Log.d("CameraActivity", "✅ visibleTo validation passed. Size: " + visibleTo.size());
 
                                 // 3. Tạo post trong Firestore
                                 Map<String, Object> postData = new HashMap<>();
@@ -355,24 +368,29 @@ public class CameraActivity extends AppCompatActivity {
                                 postData.put("timestamp", FieldValue.serverTimestamp());
                                 postData.put("visibleTo", visibleTo);
 
-                                Log.d("CameraActivity", "Creating post with data: " + postData);
+                                Log.d("CameraActivity", "🚀 Creating post:");
+                                Log.d("CameraActivity", "   userId: " + currentUserId);
+                                Log.d("CameraActivity", "   visibleTo: " + visibleTo);
+                                Log.d("CameraActivity", "   imageUrl: " + publicUrl);
+                                Log.d("CameraActivity", "   caption: " + caption);
 
                                 db.collection("posts").add(postData)
                                         .addOnSuccessListener(docRef -> {
-                                            Log.d("CameraActivity", "✅ Post created successfully: " + docRef.getId());
+                                            Log.d("CameraActivity", "✅✅ Post created: " + docRef.getId());
+                                            Log.d("CameraActivity", "    visibleTo = " + visibleTo);
                                             runOnUiThread(() -> {
                                                 Toast.makeText(this, "Đăng ảnh thành công!", Toast.LENGTH_SHORT).show();
                                                 resetUI();
                                             });
                                         })
                                         .addOnFailureListener(e -> {
-                                            Log.e("CameraActivity", "❌ Error creating post", e);
+                                            Log.e("CameraActivity", "❌ Error creating post: " + e.getMessage(), e);
                                             runOnUiThread(() ->
                                                     Toast.makeText(this, "Lỗi lưu post: " + e.getMessage(), Toast.LENGTH_LONG).show());
                                         });
                             })
                             .addOnFailureListener(e -> {
-                                Log.e("CameraActivity", "❌ Error loading friends", e);
+                                Log.e("CameraActivity", "❌ Error loading friends: " + e.getMessage(), e);
                                 runOnUiThread(() ->
                                         Toast.makeText(this, "Lỗi lấy danh sách bạn bè: " + e.getMessage(), Toast.LENGTH_LONG).show());
                             });
