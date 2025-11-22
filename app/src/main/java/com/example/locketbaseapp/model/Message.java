@@ -1,6 +1,8 @@
 package com.example.locketbaseapp.model;
 
 import com.google.firebase.Timestamp;
+import java.util.List;
+import java.util.Map;
 
 public class Message {
     public String messageId;
@@ -17,6 +19,13 @@ public class Message {
     // 🔥 SELF-DESTRUCT FIELDS (Auto-delete message)
     public Long expiresAt;                  // Timestamp khi tin nhắn tự hủy (milliseconds)
     public Long selfDestructDuration;       // Thời gian tồn tại trước khi hủy (milliseconds)
+    
+    // 🔄 RECALL FIELDS (Thu hồi tin nhắn)
+    public boolean recalled = false;        // Tin nhắn đã bị thu hồi?
+    public Timestamp recalledAt;            // Thời gian thu hồi
+    
+    // ❤️ REACTION FIELDS (React emoji)
+    public Map<String, List<String>> reactions;  // emoji -> [userId1, userId2, ...]
 
     public Message() {}
 
@@ -43,5 +52,16 @@ public class Message {
         } else {
             return "Đang gửi...";
         }
+    }
+    
+    // Helper method to check if message is recalled
+    public boolean isRecalled() {
+        return recalled;
+    }
+    
+    // Helper method to check if message has expired (self-destruct)
+    public boolean hasExpired() {
+        if (expiresAt == null) return false;
+        return System.currentTimeMillis() > expiresAt;
     }
 }

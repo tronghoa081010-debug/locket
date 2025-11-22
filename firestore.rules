@@ -52,8 +52,13 @@ service cloud.firestore {
                request.auth.uid in request.resource.data.participants;
       }
       
-      allow read: if request.auth != null && 
-                     (resource == null || isParticipant());
+      // ✅ FIX: Separate list and get operations
+      // List operations (queries) - allow authenticated users to query
+      allow list: if request.auth != null;
+      
+      // Get operations (single document read) - check if user is participant
+      allow get: if request.auth != null && 
+                    (resource == null || isParticipant());
       
       allow create: if request.auth != null && 
                        isParticipantInNew() &&
@@ -77,8 +82,15 @@ service cloud.firestore {
         allow update: if request.auth != null && 
                          request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
         
-        allow delete: if request.auth != null && 
-                         request.auth.uid == resource.data.senderId;
+        // Allow delete if:
+        // 1. User is the sender (for recall feature)
+        // 2. User is a participant AND message has expired (for self-destruct auto-delete)
+        allow delete: if request.auth != null && (
+                         request.auth.uid == resource.data.senderId ||
+                         (request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants &&
+                          resource.data.expiresAt != null &&
+                          request.time.toMillis() > resource.data.expiresAt)
+                       );
       }
     }
     
@@ -86,9 +98,14 @@ service cloud.firestore {
     // COLLECTION: posts
     // ========================================
     match /posts/{postId} {
-      allow read: if request.auth != null && 
-                     (request.auth.uid in resource.data.visibleTo || 
-                      request.auth.uid == resource.data.userId);
+      // ✅ FIX: Separate list and get operations
+      // List operations (queries) - allow authenticated users to query
+      allow list: if request.auth != null;
+      
+      // Get operations (single document read) - check visibility
+      allow get: if request.auth != null && 
+                    (request.auth.uid in resource.data.visibleTo || 
+                     request.auth.uid == resource.data.userId);
       
       allow create: if request.auth != null && 
                        request.auth.uid == request.resource.data.userId;
