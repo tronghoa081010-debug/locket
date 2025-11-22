@@ -3,6 +3,7 @@ package com.example.locketbaseapp;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.widget.EditText;
 
 import android.widget.Button;
@@ -138,8 +139,48 @@ public class CameraActivity extends AppCompatActivity {
             Intent intent = new Intent(this, ChatListActivity.class);
             startActivity(intent);
         });
+        setupSwipeGesture();
+    }
+    private void setupSwipeGesture() {
+        View rootView = findViewById(android.R.id.content);
+
+        rootView.setOnTouchListener(new View.OnTouchListener() {
+            private float startX;
+            private float startY;
+            private static final int SWIPE_THRESHOLD = 100;
+
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        startX = event.getX();
+                        startY = event.getY();
+                        return true;
+
+                    case MotionEvent.ACTION_UP:
+                        float endX = event.getX();
+                        float endY = event.getY();
+
+                        float deltaX = endX - startX;
+                        float deltaY = endY - startY;
+
+                        // Swipe phải (từ trái sang phải)
+                        if (deltaX > SWIPE_THRESHOLD && Math.abs(deltaY) < SWIPE_THRESHOLD) {
+                            openChatList();
+                            return true;
+                        }
+                        break;
+                }
+                return false;
+            }
+        });
     }
 
+    private void openChatList() {
+        Intent intent = new Intent(this, ChatListActivity.class);
+        startActivity(intent);
+        overridePendingTransition(android.R.anim.slide_in_left, android.R.anim.slide_out_right);
+    }
     private boolean allPermissionsGranted() {
         for (String permission : REQUIRED_PERMISSIONS) {
             if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED)

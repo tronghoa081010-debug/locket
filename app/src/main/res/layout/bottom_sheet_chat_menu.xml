@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_bottom_sheet"
+    android:padding="8dp">
+
+    <!-- Header với avatar và tên -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="16dp">
+
+        <ImageView
+            android:id="@+id/ivMenuAvatar"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:src="@drawable/ic_person_circle" />
+
+        <TextView
+            android:id="@+id/tvMenuName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:text="Friend Name"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF" />
+    </LinearLayout>
+
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginHorizontal="16dp"
+        android:background="#40FFFFFF" />
+
+    <!-- Option: Xóa bạn -->
+    <LinearLayout
+        android:id="@+id/btnUnfriend"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="20dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="?attr/selectableItemBackground">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_person_remove"
+            android:tint="#FFFFFF" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:text="Xóa bạn"
+            android:textSize="16sp"
+            android:textColor="#FFFFFF" />
+    </LinearLayout>
+
+    <!-- Option: Báo cáo -->
+    <LinearLayout
+        android:id="@+id/btnReport"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="20dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="?attr/selectableItemBackground">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_flag"
+            android:tint="#FFFFFF" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:text="Báo cáo"
+            android:textSize="16sp"
+            android:textColor="#FFFFFF" />
+    </LinearLayout>
+
+    <!-- Option: Chặn (màu đỏ) -->
+    <LinearLayout
+        android:id="@+id/btnBlock"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="20dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="?attr/selectableItemBackground">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_block"
+            android:tint="#FF4444" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:text="Chặn"
+            android:textSize="16sp"
+            android:textColor="#FF4444" />
+    </LinearLayout>
+
+</LinearLayout>
