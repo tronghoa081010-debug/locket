@@ -24,7 +24,13 @@
             android:text="Message text"
             android:textColor="#FFFFFF"
             android:textSize="15sp" />
-
+        <!-- ✅ THÊM IMAGEVIEW NÀY -->
+        <ImageView
+            android:id="@+id/ivMessageImage"
+            android:layout_width="200dp"
+            android:layout_height="200dp"
+            android:scaleType="fitCenter"
+            android:visibility="gone" />
         <!-- STATUS TEXT -->
         <TextView
             android:id="@+id/tvStatus"
@@ -58,6 +64,7 @@
             android:layout_marginTop="4dp"
             android:textSize="13sp"
             android:visibility="gone" />
+            
     </LinearLayout>
 
 </LinearLayout>

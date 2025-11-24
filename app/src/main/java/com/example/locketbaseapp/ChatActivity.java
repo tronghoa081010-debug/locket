@@ -43,6 +43,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.Date;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 public class ChatActivity extends AppCompatActivity {
     private static final String TAG = "ChatActivity";
     private RecyclerView rvMessages;
@@ -65,7 +67,7 @@ public class ChatActivity extends AppCompatActivity {
     
     // SharedPreferences for self-destruct settings
     private SharedPreferences selfDestructPrefs;
-    private static final String PREF_SELF_DESTRUCT = "self_destruct_prefs";
+    private static final String PREF_SELF_DESTRUCT_PREFIX = "self_destruct_";
     private static final String KEY_ENABLED = "enabled";
     private static final String KEY_DURATION = "duration";
     
@@ -89,25 +91,30 @@ public class ChatActivity extends AppCompatActivity {
         try {
             db = FirebaseFirestore.getInstance();
             currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
-            
-            // Initialize clipboard manager
-            clipboardManager = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-            
-            // Initialize self-destruct preferences
-            selfDestructPrefs = getSharedPreferences(PREF_SELF_DESTRUCT, MODE_PRIVATE);
-            isSelfDestructEnabled = selfDestructPrefs.getBoolean(KEY_ENABLED, false);
-            selfDestructDuration = selfDestructPrefs.getLong(KEY_DURATION, 0);
+    
+            // ✅ GET friendId FIRST (from Intent)
             friendId = getIntent().getStringExtra("friendId");
             friendName = getIntent().getStringExtra("friendName");
             friendPhoto = getIntent().getStringExtra("friendPhoto");
+    
             if (friendId == null || friendName == null) {
                 Log.e(TAG, "Missing friend info!");
                 Toast.makeText(this, "Lỗi: Thiếu thông tin bạn bè", Toast.LENGTH_SHORT).show();
                 finish();
                 return;
             }
+    
+            // ✅ THEN generate chatId (needs friendId)
             chatId = generateChatId(currentUserId, friendId);
             Log.d(TAG, "Chat ID: " + chatId);
+    
+            // Initialize clipboard manager
+            clipboardManager = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+    
+            // Initialize self-destruct preferences (PER-CHAT)
+            selfDestructPrefs = getSharedPreferences(PREF_SELF_DESTRUCT_PREFIX + chatId, MODE_PRIVATE);
+            isSelfDestructEnabled = selfDestructPrefs.getBoolean(KEY_ENABLED, false);
+            selfDestructDuration = selfDestructPrefs.getLong(KEY_DURATION, 0);
             // Setup UI
             btnBack = findViewById(R.id.btnBack);
             btnMenu = findViewById(R.id.btnMenu);
@@ -431,45 +438,95 @@ public class ChatActivity extends AppCompatActivity {
                 });
     }
     private void listenToMessages() {
-        messageListener = db.collection("chats")
-                .document(chatId)
-                .collection("messages")
-                .orderBy("timestamp", Query.Direction.ASCENDING)
-                .addSnapshotListener((snapshots, error) -> {
-                    if (error != null) {
-                        Log.e(TAG, "Listen failed", error);
-                        return;
-                    }
-                    messageList.clear();
-                    if (snapshots != null) {
-                        for (DocumentSnapshot doc : snapshots.getDocuments()) {
-                            Message msg = doc.toObject(Message.class);
-                            if (msg != null) {
-                                msg.messageId = doc.getId();
-                                messageList.add(msg);
-                                if (!msg.senderId.equals(currentUserId) && msg.deliveredAt == null) {
-                                    markAsDelivered(msg.messageId);
-                                }
-                                if (!msg.senderId.equals(currentUserId) && !msg.isRead) {
-                                    markAsRead(msg.messageId);
-                                }
+    messageListener = db.collection("chats")
+            .document(chatId)
+            .collection("messages")
+            .orderBy("timestamp", Query.Direction.ASCENDING)
+            .addSnapshotListener((snapshots, error) -> {
+                if (error != null) {
+                    Log.e(TAG, "Listen failed", error);
+                    return;
+                }
+                
+                if (snapshots != null) {
+                    // ✅ CHỈ XỬ LÝ THAY ĐỔI, KHÔNG CLEAR TẤT CẢ
+                    for (DocumentChange dc : snapshots.getDocumentChanges()) {
+                        Message msg = dc.getDocument().toObject(Message.class);
+                        if (msg != null) {
+                            msg.messageId = dc.getDocument().getId();
+                            
+                            switch (dc.getType()) {
+                                case ADDED:
+                                    // Thêm tin nhắn mới
+                                    messageList.add(msg);
+                                    
+                                    // Mark as delivered/read
+                                    if (!msg.senderId.equals(currentUserId) && msg.deliveredAt == null) {
+                                        markAsDelivered(msg.messageId);
+                                    }
+                                    if (!msg.senderId.equals(currentUserId) && !msg.isRead) {
+                                        markAsRead(msg.messageId);
+                                    }
+                                    break;
+                                    
+                                case MODIFIED:
+    // Cập nhật tin nhắn đã có
+    for (int i = 0; i < messageList.size(); i++) {
+        if (messageList.get(i).messageId.equals(msg.messageId)) {
+            Message oldMsg = messageList.get(i);
+            messageList.set(i, msg);
+            
+            // ✅ BẮT ĐẦU TIMER KHI readAt VỪA ĐƯỢC CẬP NHẬT
+            if (oldMsg.readAt == null && msg.readAt != null && 
+                msg.selfDestructDuration != null && msg.selfDestructDuration > 0 &&
+                msg.expiresAt == null) {
+                
+                // Tính expiresAt
+                long readTime = msg.readAt.toDate().getTime();
+                long expiresAt = readTime + msg.selfDestructDuration;
+                
+                // Update locally
+                msg.expiresAt = expiresAt;
+                
+                // Update Firestore
+                db.collection("chats").document(chatId)
+                    .collection("messages").document(msg.messageId)
+                    .update("expiresAt", expiresAt)
+                    .addOnSuccessListener(aVoid -> {
+                        Log.d(TAG, "✅ Timer started for message: " + msg.messageId);
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.w(TAG, "⚠️ Error updating timer: " + e.getMessage());
+                    });
+            }
+            break;
+        }
+    }
+    break;
+                                    
+                                case REMOVED:
+                                    // Xóa tin nhắn
+                                    messageList.removeIf(m -> m.messageId.equals(msg.messageId));
+                                    break;
                             }
                         }
                     }
-                    
-                    // ✅ START TIMERS AFTER MESSAGES LOADED (only once)
-                    if (!timersStarted && !messageList.isEmpty()) {
-                        timersStarted = true;
-                        messageExecutor.execute(() -> {
-                            startSelfDestructTimers();
-                        });
-                    }
-                    adapter.notifyDataSetChanged();
-                    if (messageList.size() > 0) {
-                        rvMessages.smoothScrollToPosition(messageList.size() - 1);
-                    }
-                });
-    }
+                }
+                
+                // ✅ START TIMERS AFTER MESSAGES LOADED (only once)
+                if (!timersStarted && !messageList.isEmpty()) {
+                    timersStarted = true;
+                    messageExecutor.execute(() -> {
+                        startSelfDestructTimers();
+                    });
+                }
+                
+                adapter.notifyDataSetChanged();
+                if (messageList.size() > 0) {
+                    rvMessages.smoothScrollToPosition(messageList.size() - 1);
+                }
+            });
+}
     private void markAsDelivered(String messageId) {
         Map<String, Object> update = new HashMap<>();
         update.put("deliveredAt", FieldValue.serverTimestamp());
@@ -520,21 +577,21 @@ public class ChatActivity extends AppCompatActivity {
                 });
     }
     private void sendMessageToExistingChat(Map<String, Object> messageData, String text) {
-        db.collection("chats").document(chatId)
-                .collection("messages")
-                .add(messageData)
-                .addOnSuccessListener(docRef -> {
-                    Map<String, Object> updateData = new HashMap<>();
-                    updateData.put("lastMessage", text);
-                    updateData.put("lastMessageTime", FieldValue.serverTimestamp());
-                    db.collection("chats").document(chatId).update(updateData);
-                    etMessage.setText("");
-                    hideKeyboard();
-                })
-                .addOnFailureListener(e -> {
-                    Toast.makeText(this, "Lỗi gửi tin nhắn: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
-    }
+    db.collection("chats").document(chatId)
+            .collection("messages")
+            .add(messageData)
+            .addOnSuccessListener(docRef -> {
+                Map<String, Object> updateData = new HashMap<>();
+                updateData.put("lastMessage", text);
+                updateData.put("lastMessageTime", FieldValue.serverTimestamp());
+                db.collection("chats").document(chatId).update(updateData);
+                etMessage.setText("");
+                hideKeyboard();
+            })
+            .addOnFailureListener(e -> {
+                Toast.makeText(this, "Lỗi gửi tin nhắn: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            });
+}
     private void toggleSelfDestructMode() {
         Log.d(TAG, "🔄 toggleSelfDestructMode() called");
         Log.d(TAG, "   Current state: " + (isSelfDestructEnabled ? "ON" : "OFF"));
@@ -632,12 +689,74 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
     private void showStickerPicker() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("📦 Chọn Sticker");
-        builder.setMessage("💡 Chức năng sticker từ Supabase đang được triển khai.");
-        builder.setPositiveButton("Đóng", (dialog, which) -> dialog.dismiss());
-        builder.show();
-    }
+    // Tạo BottomSheetDialog
+    BottomSheetDialog dialog = new BottomSheetDialog(this);
+    View view = getLayoutInflater().inflate(R.layout.dialog_sticker_picker, null);
+    dialog.setContentView(view);
+    androidx.recyclerview.widget.RecyclerView rvStickers = view.findViewById(R.id.rvStickers);
+    android.widget.ProgressBar progressBar = view.findViewById(R.id.progressBar);
+    TextView tvError = view.findViewById(R.id.tvError);
+    // Setup GridLayoutManager (4 cột)
+    androidx.recyclerview.widget.GridLayoutManager gridLayoutManager = 
+        new androidx.recyclerview.widget.GridLayoutManager(this, 4);
+    rvStickers.setLayoutManager(gridLayoutManager);
+    // Fetch stickers từ Supabase
+    com.example.locketbaseapp.service.StickerService.fetchStickers(
+        new com.example.locketbaseapp.service.StickerService.StickerCallback() {
+            @Override
+            public void onSuccess(List<com.example.locketbaseapp.model.Sticker> stickers) {
+                progressBar.setVisibility(View.GONE);
+                
+                if (stickers.isEmpty()) {
+                    tvError.setText("Chưa có sticker nào");
+                    tvError.setVisibility(View.VISIBLE);
+                } else {
+                    rvStickers.setVisibility(View.VISIBLE);
+                    
+                    com.example.locketbaseapp.ui.StickerAdapter adapter = 
+                        new com.example.locketbaseapp.ui.StickerAdapter(stickers, sticker -> {
+                            sendStickerMessage(sticker);
+                            dialog.dismiss();
+                        });
+                    rvStickers.setAdapter(adapter);
+                }
+            }
+            @Override
+            public void onError(String error) {
+                progressBar.setVisibility(View.GONE);
+                tvError.setText("Lỗi: " + error);
+                tvError.setVisibility(View.VISIBLE);
+            }
+        }
+    );
+    dialog.show();
+}
+private void sendStickerMessage(com.example.locketbaseapp.model.Sticker sticker) {
+    Map<String, Object> messageData = new HashMap<>();
+    messageData.put("senderId", currentUserId);
+    messageData.put("text", ""); // Empty text for sticker
+    messageData.put("imageUrl", sticker.url);
+   messageData.put("timestamp", new Timestamp(new Date())); 
+    messageData.put("isRead", false);
+    messageData.put("type", "sticker"); // Đánh dấu là sticker
+    
+    db.collection("chats").document(chatId)
+            .collection("messages")
+            .add(messageData)
+            .addOnSuccessListener(docRef -> {
+                // Update last message
+                Map<String, Object> updateData = new HashMap<>();
+                updateData.put("lastMessage", "[Sticker]");
+                updateData.put("lastMessageTime", FieldValue.serverTimestamp());
+                db.collection("chats").document(chatId).update(updateData);
+                
+                Log.d(TAG, "✅ Sticker sent: " + sticker.url);
+            })
+            .addOnFailureListener(e -> {
+                Toast.makeText(this, "Lỗi gửi sticker", Toast.LENGTH_SHORT).show();
+                Log.e(TAG, "❌ Error sending sticker", e);
+            });
+}
     // ═══════════════════════════════════════════════════════════════
     // 🔥 FIREBASE BATCH OPERATIONS
     // ═══════════════════════════════════════════════════════════════
@@ -693,27 +812,26 @@ public class ChatActivity extends AppCompatActivity {
     // ⏱️ TIMER LOGIC
     // ═══════════════════════════════════════════════════════════════
     private void startSelfDestructTimers() {
-        long chatOpenTime = System.currentTimeMillis();
-        
-        for (Message msg : messageList) {
-            if (msg.selfDestructDuration != null && msg.selfDestructDuration > 0) {
-                // Check if timer already started
-                if (msg.expiresAt == null || msg.expiresAt == 0) {
-                    // Set expiry time from chat open
-                    long expiresAt = chatOpenTime + msg.selfDestructDuration;
-                    
-                    // Update locally first
-                    msg.expiresAt = expiresAt;
-                    
-                    // Update Firestore
-                    db.collection("chats").document(chatId)
-                        .collection("messages").document(msg.messageId)
-                        .update("expiresAt", expiresAt)
-                        .addOnSuccessListener(aVoid -> {
-                            Log.d(TAG, "✅ Timer started for message: " + msg.messageId);
-                        });
-                }
+    for (Message msg : messageList) {
+        if (msg.selfDestructDuration != null && msg.selfDestructDuration > 0) {
+            // ✅ CHỈ BẮT ĐẦU TIMER KHI NGƯỜI NHẬN ĐÃ XEM
+            if (msg.readAt != null && (msg.expiresAt == null || msg.expiresAt == 0)) {
+                // Calculate expiry time from readAt
+                long readTime = msg.readAt.toDate().getTime();
+                long expiresAt = readTime + msg.selfDestructDuration;
+                
+                // Update locally
+                msg.expiresAt = expiresAt;
+                
+                // Update Firestore
+                db.collection("chats").document(chatId)
+                    .collection("messages").document(msg.messageId)
+                    .update("expiresAt", expiresAt)
+                    .addOnSuccessListener(aVoid -> {
+                        Log.d(TAG, "✅ Timer started for message: " + msg.messageId);
+                    });
             }
+        }
         }
     }
     private void startTimerUpdater() {

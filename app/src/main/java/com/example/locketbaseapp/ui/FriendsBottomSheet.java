@@ -24,7 +24,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
-
+import com.google.firebase.firestore.Source;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -231,153 +231,200 @@ public class FriendsBottomSheet extends BottomSheetDialogFragment {
     // ========== LOAD DATA ==========
 
     private void loadFriends() {
-        String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        
-        Log.d("FriendsBottomSheet", "═══════════════════════════════════════");
-        Log.d("FriendsBottomSheet", "📥 loadFriends() started");
-        Log.d("FriendsBottomSheet", "   User ID: " + currentUserId);
-        Log.d("FriendsBottomSheet", "═══════════════════════════════════════");
-
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
-
-        db.collection("users")
-                .document(currentUserId)
-                .collection("friends")
-                .get()
-                .addOnSuccessListener(queryDocumentSnapshots -> {
-                    Log.d("FriendsBottomSheet", "───────────────────────────────────────");
-                    Log.d("FriendsBottomSheet", "✅ Friends query SUCCESS");
-                    Log.d("FriendsBottomSheet", "   - Snapshot size: " + queryDocumentSnapshots.size());
-                    Log.d("FriendsBottomSheet", "   - From cache: " + queryDocumentSnapshots.getMetadata().isFromCache());
-
-                    allFriends.clear();
-                    for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
-                        User friend = document.toObject(User.class);
-                        if (friend != null) {
-                            friend.uid = document.getId();  // ✅ Ensure UID is set
-                            Log.d("FriendsBottomSheet", "   ✅ Friend loaded: " + friend.displayName + " (UID: " + friend.uid + ")");
-                            allFriends.add(friend);
-                        } else {
-                            Log.w("FriendsBottomSheet", "   ⚠️ Friend is null for doc: " + document.getId());
-                        }
-                    }
-                    
-                    Log.d("FriendsBottomSheet", "✅ Total friends: " + allFriends.size());
-                    Log.d("FriendsBottomSheet", "───────────────────────────────────────");
-                    
-                    updateDisplayedFriends();
-                    updateTitle();
-                })
-                .addOnFailureListener(e -> {
-                    Log.e("FriendsBottomSheet", "───────────────────────────────────────");
-                    Log.e("FriendsBottomSheet", "❌ Friends query FAILED");
-                    Log.e("FriendsBottomSheet", "   - Error class: " + e.getClass().getSimpleName());
-                    Log.e("FriendsBottomSheet", "   - Error message: " + e.getMessage());
-                    Log.e("FriendsBottomSheet", "   - Path: /users/" + currentUserId + "/friends");
-
-                    if (e.getMessage() != null && e.getMessage().contains("PERMISSION_DENIED")) {
-                        Log.e("FriendsBottomSheet", "❌ PERMISSION_DENIED - Check Firestore rules!");
-                    }
-
-                    Log.e("FriendsBottomSheet", "───────────────────────────────────────");
-                    Toast.makeText(getContext(), "Lỗi tải danh sách bạn bè: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                });
+    String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+    
+    Log.d("FriendsBottomSheet", "═══════════════════════════════════════");
+    Log.d("FriendsBottomSheet", "📥 loadFriends() - trying CACHE first");
+    Log.d("FriendsBottomSheet", "   User ID: " + currentUserId);
+    Log.d("FriendsBottomSheet", "═══════════════════════════════════════");
+    FirebaseFirestore db = FirebaseFirestore.getInstance();
+    // Try cache first
+    db.collection("users")
+            .document(currentUserId)
+            .collection("friends")
+            .get(Source.CACHE)
+            .addOnSuccessListener(queryDocumentSnapshots -> {
+                if (!queryDocumentSnapshots.isEmpty()) {
+                    Log.d("FriendsBottomSheet", "✅ Loaded from CACHE (" + queryDocumentSnapshots.size() + " friends)");
+                    processFriendsData(queryDocumentSnapshots);
+                } else {
+                    Log.d("FriendsBottomSheet", "⚠️ Cache empty, fetching from SERVER");
+                    loadFriendsFromServer();
+                }
+            })
+            .addOnFailureListener(e -> {
+                Log.e("FriendsBottomSheet", "❌ Cache failed, fetching from SERVER");
+                loadFriendsFromServer();
+            });
+}
+private void loadFriendsFromServer() {
+    String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+    FirebaseFirestore db = FirebaseFirestore.getInstance();
+    db.collection("users")
+            .document(currentUserId)
+            .collection("friends")
+            .get(Source.SERVER)
+            .addOnSuccessListener(queryDocumentSnapshots -> {
+                Log.d("FriendsBottomSheet", "✅ Loaded from SERVER (" + queryDocumentSnapshots.size() + " friends)");
+                processFriendsData(queryDocumentSnapshots);
+            })
+            .addOnFailureListener(e -> {
+                Log.e("FriendsBottomSheet", "❌ Server fetch FAILED", e);
+                Toast.makeText(getContext(), "Lỗi tải danh sách bạn bè: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            });
+}
+private void processFriendsData(com.google.firebase.firestore.QuerySnapshot queryDocumentSnapshots) {
+    Log.d("FriendsBottomSheet", "───────────────────────────────────────");
+    Log.d("FriendsBottomSheet", "✅ Friends data processing");
+    Log.d("FriendsBottomSheet", "   - Snapshot size: " + queryDocumentSnapshots.size());
+    Log.d("FriendsBottomSheet", "   - From cache: " + queryDocumentSnapshots.getMetadata().isFromCache());
+    allFriends.clear();
+    for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
+        User friend = document.toObject(User.class);
+        if (friend != null) {
+            friend.uid = document.getId();
+            Log.d("FriendsBottomSheet", "   ✅ Friend loaded: " + friend.displayName + " (UID: " + friend.uid + ")");
+            allFriends.add(friend);
+        } else {
+            Log.w("FriendsBottomSheet", "   ⚠️ Friend is null for doc: " + document.getId());
+        }
     }
+    
+    Log.d("FriendsBottomSheet", "✅ Total friends: " + allFriends.size());
+    Log.d("FriendsBottomSheet", "───────────────────────────────────────");
+    
+    updateDisplayedFriends();
+    updateTitle();
+}
 
     private void loadFriendRequests() {
-        String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
-
-        Log.d("FriendsBottomSheet", "═══════════════════════════════════════");
-        Log.d("FriendsBottomSheet", "📨 loadFriendRequests() started");
-        Log.d("FriendsBottomSheet", "   User ID: " + currentUserId);
-
-        db.collection("users")
-                .document(currentUserId)
-                .collection("friendRequests")
-                .get()
-                .addOnSuccessListener(queryDocumentSnapshots -> {
-                    Log.d("FriendsBottomSheet", "───────────────────────────────────────");
-                    Log.d("FriendsBottomSheet", "✅ Friend requests query SUCCESS");
-                    Log.d("FriendsBottomSheet", "   - Count: " + queryDocumentSnapshots.size());
-
-                    friendRequests.clear();
-                    for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
-                        User user = document.toObject(User.class);
-                        if (user != null) {
-                            user.uid = document.getId();
-                            Log.d("FriendsBottomSheet", "   ✅ Request from: " + user.displayName + " (UID: " + user.uid + ")");
-                            friendRequests.add(user);
-                        }
-                    }
-
-                    if (!friendRequests.isEmpty()) {
-                        friendRequestSection.setVisibility(View.VISIBLE);
-                        requestAdapter.notifyDataSetChanged();
-                        Log.d("FriendsBottomSheet", "✅ Friend requests section visible");
-                    } else {
-                        friendRequestSection.setVisibility(View.GONE);
-                        Log.d("FriendsBottomSheet", "ℹ️ No friend requests");
-                    }
-
-                    Log.d("FriendsBottomSheet", "───────────────────────────────────────");
-                })
-                .addOnFailureListener(e -> {
-                    Log.e("FriendsBottomSheet", "───────────────────────────────────────");
-                    Log.e("FriendsBottomSheet", "❌ Friend requests query FAILED");
-                    Log.e("FriendsBottomSheet", "   - Error: " + e.getMessage());
-                    Log.e("FriendsBottomSheet", "───────────────────────────────────────");
-                    Toast.makeText(getContext(), "Lỗi tải yêu cầu kết bạn: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                });
+    String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+    FirebaseFirestore db = FirebaseFirestore.getInstance();
+    Log.d("FriendsBottomSheet", "═══════════════════════════════════════");
+    Log.d("FriendsBottomSheet", "📨 loadFriendRequests() - trying CACHE first");
+    Log.d("FriendsBottomSheet", "   User ID: " + currentUserId);
+    db.collection("users")
+            .document(currentUserId)
+            .collection("friendRequests")
+            .get(Source.CACHE)
+            .addOnSuccessListener(queryDocumentSnapshots -> {
+                if (!queryDocumentSnapshots.isEmpty() || queryDocumentSnapshots.getMetadata().isFromCache()) {
+                    Log.d("FriendsBottomSheet", "✅ Loaded from CACHE");
+                    processFriendRequestsData(queryDocumentSnapshots);
+                } else {
+                    Log.d("FriendsBottomSheet", "⚠️ Cache empty, fetching from SERVER");
+                    loadFriendRequestsFromServer();
+                }
+            })
+            .addOnFailureListener(e -> {
+                Log.e("FriendsBottomSheet", "❌ Cache failed, fetching from SERVER");
+                loadFriendRequestsFromServer();
+            });
+}
+private void loadFriendRequestsFromServer() {
+    String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+    FirebaseFirestore db = FirebaseFirestore.getInstance();
+    db.collection("users")
+            .document(currentUserId)
+            .collection("friendRequests")
+            .get(Source.SERVER)
+            .addOnSuccessListener(queryDocumentSnapshots -> {
+                Log.d("FriendsBottomSheet", "✅ Loaded from SERVER");
+                processFriendRequestsData(queryDocumentSnapshots);
+            })
+            .addOnFailureListener(e -> {
+                Log.e("FriendsBottomSheet", "❌ Server fetch FAILED", e);
+                Toast.makeText(getContext(), "Lỗi tải yêu cầu kết bạn: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            });
+}
+private void processFriendRequestsData(com.google.firebase.firestore.QuerySnapshot queryDocumentSnapshots) {
+    Log.d("FriendsBottomSheet", "───────────────────────────────────────");
+    Log.d("FriendsBottomSheet", "✅ Friend requests data processing");
+    Log.d("FriendsBottomSheet", "   - Count: " + queryDocumentSnapshots.size());
+    friendRequests.clear();
+    for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
+        User user = document.toObject(User.class);
+        if (user != null) {
+            user.uid = document.getId();
+            Log.d("FriendsBottomSheet", "   ✅ Request from: " + user.displayName + " (UID: " + user.uid + ")");
+            friendRequests.add(user);
+        }
     }
+    if (!friendRequests.isEmpty()) {
+        friendRequestSection.setVisibility(View.VISIBLE);
+        requestAdapter.notifyDataSetChanged();
+        Log.d("FriendsBottomSheet", "✅ Friend requests section visible");
+    } else {
+        friendRequestSection.setVisibility(View.GONE);
+        Log.d("FriendsBottomSheet", "ℹ️ No friend requests");
+    }
+    Log.d("FriendsBottomSheet", "───────────────────────────────────────");
+}
 
     // MỚI THÊM: Load Sent Requests
     private void loadSentRequests() {
-        String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
-
-        Log.d("FriendsBottomSheet", "═══════════════════════════════════════");
-        Log.d("FriendsBottomSheet", "📤 loadSentRequests() started");
-        Log.d("FriendsBottomSheet", "   User ID: " + currentUserId);
-
-        db.collection("users")
-                .document(currentUserId)
-                .collection("sentRequests")
-                .get()
-                .addOnSuccessListener(queryDocumentSnapshots -> {
-                    Log.d("FriendsBottomSheet", "───────────────────────────────────────");
-                    Log.d("FriendsBottomSheet", "✅ Sent requests query SUCCESS");
-                    Log.d("FriendsBottomSheet", "   - Count: " + queryDocumentSnapshots.size());
-
-                    sentRequests.clear();
-                    for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
-                        User user = document.toObject(User.class);
-                        if (user != null) {
-                            user.uid = document.getId();
-                            Log.d("FriendsBottomSheet", "   ✅ Sent request to: " + user.displayName + " (UID: " + user.uid + ")");
-                            sentRequests.add(user);
-                        }
-                    }
-
-                    if (!sentRequests.isEmpty()) {
-                        sentRequestsSection.setVisibility(View.VISIBLE);
-                        sentAdapter.notifyDataSetChanged();
-                        Log.d("FriendsBottomSheet", "✅ Sent requests section visible");
-                    } else {
-                        sentRequestsSection.setVisibility(View.GONE);
-                        Log.d("FriendsBottomSheet", "ℹ️ No sent requests");
-                    }
-
-                    Log.d("FriendsBottomSheet", "───────────────────────────────────────");
-                })
-                .addOnFailureListener(e -> {
-                    Log.e("FriendsBottomSheet", "───────────────────────────────────────");
-                    Log.e("FriendsBottomSheet", "❌ Sent requests query FAILED");
-                    Log.e("FriendsBottomSheet", "   - Error: " + e.getMessage());
-                    Log.e("FriendsBottomSheet", "───────────────────────────────────────");
-                    Toast.makeText(getContext(), "Lỗi tải yêu cầu đã gửi: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                });
+    String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+    FirebaseFirestore db = FirebaseFirestore.getInstance();
+    Log.d("FriendsBottomSheet", "═══════════════════════════════════════");
+    Log.d("FriendsBottomSheet", "📤 loadSentRequests() - trying CACHE first");
+    Log.d("FriendsBottomSheet", "   User ID: " + currentUserId);
+    db.collection("users")
+            .document(currentUserId)
+            .collection("sentRequests")
+            .get(Source.CACHE)
+            .addOnSuccessListener(queryDocumentSnapshots -> {
+                if (!queryDocumentSnapshots.isEmpty() || queryDocumentSnapshots.getMetadata().isFromCache()) {
+                    Log.d("FriendsBottomSheet", "✅ Loaded from CACHE");
+                    processSentRequestsData(queryDocumentSnapshots);
+                } else {
+                    Log.d("FriendsBottomSheet", "⚠️ Cache empty, fetching from SERVER");
+                    loadSentRequestsFromServer();
+                }
+            })
+            .addOnFailureListener(e -> {
+                Log.e("FriendsBottomSheet", "❌ Cache failed, fetching from SERVER");
+                loadSentRequestsFromServer();
+            });
+}
+private void loadSentRequestsFromServer() {
+    String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+    FirebaseFirestore db = FirebaseFirestore.getInstance();
+    db.collection("users")
+            .document(currentUserId)
+            .collection("sentRequests")
+            .get(Source.SERVER)
+            .addOnSuccessListener(queryDocumentSnapshots -> {
+                Log.d("FriendsBottomSheet", "✅ Loaded from SERVER");
+                processSentRequestsData(queryDocumentSnapshots);
+            })
+            .addOnFailureListener(e -> {
+                Log.e("FriendsBottomSheet", "❌ Server fetch FAILED", e);
+                Toast.makeText(getContext(), "Lỗi tải yêu cầu đã gửi: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            });
+}
+private void processSentRequestsData(com.google.firebase.firestore.QuerySnapshot queryDocumentSnapshots) {
+    Log.d("FriendsBottomSheet", "───────────────────────────────────────");
+    Log.d("FriendsBottomSheet", "✅ Sent requests data processing");
+    Log.d("FriendsBottomSheet", "   - Count: " + queryDocumentSnapshots.size());
+    sentRequests.clear();
+    for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
+        User user = document.toObject(User.class);
+        if (user != null) {
+            user.uid = document.getId();
+            Log.d("FriendsBottomSheet", "   ✅ Sent request to: " + user.displayName + " (UID: " + user.uid + ")");
+            sentRequests.add(user);
+        }
     }
+    if (!sentRequests.isEmpty()) {
+        sentRequestsSection.setVisibility(View.VISIBLE);
+        sentAdapter.notifyDataSetChanged();
+        Log.d("FriendsBottomSheet", "✅ Sent requests section visible");
+    } else {
+        sentRequestsSection.setVisibility(View.GONE);
+        Log.d("FriendsBottomSheet", "ℹ️ No sent requests");
+    }
+    Log.d("FriendsBottomSheet", "───────────────────────────────────────");
+}
 
     private void loadBlockedUsers() {
         String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();

@@ -15,6 +15,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import android.widget.ImageView;
+import com.bumptech.glide.Glide;
 
 public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
@@ -59,24 +61,20 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     }
 
     private boolean shouldShowTimestamp(int position) {
+        // ✅ LUÔN HIỂN THỊ TIMESTAMP CHO TIN NHẮN ĐẦU TIÊN
         if (position == 0) {
-            Message first = messages.get(0);
-            if (first.timestamp == null) return false;
-            
-            long now = System.currentTimeMillis();
-            long messageTime = first.timestamp.toDate().getTime();
-            long diff = now - messageTime;
-            
-            return diff > ONE_HOUR_MS;
+            return true;  // Luôn hiển thị cho tin nhắn đầu tiên
         }
 
         Message current = messages.get(position);
         Message previous = messages.get(position - 1);
 
+        // Nếu một trong 2 null → Không hiện timestamp
         if (current.timestamp == null || previous.timestamp == null) {
             return false;
         }
 
+        // Hiển thị timestamp nếu khoảng cách > 1 giờ
         long diff = current.timestamp.toDate().getTime() - previous.timestamp.toDate().getTime();
         return diff > ONE_HOUR_MS;
     }
@@ -113,10 +111,12 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     static class MessageViewHolder extends RecyclerView.ViewHolder {
         TextView tvMessage, tvStatus, tvReactions, tvTimer;
         LinearLayout messageContainer;
+        ImageView ivMessageImage;
 
         MessageViewHolder(View itemView) {
             super(itemView);
             tvMessage = itemView.findViewById(R.id.tvMessage);
+            ivMessageImage = itemView.findViewById(R.id.ivMessageImage);
             tvStatus = itemView.findViewById(R.id.tvStatus);
             tvReactions = itemView.findViewById(R.id.tvReactions);
             tvTimer = itemView.findViewById(R.id.tvTimer);
@@ -140,6 +140,8 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 tvStatus.setVisibility(View.GONE);
                 tvReactions.setVisibility(View.GONE);
                 tvTimer.setVisibility(View.GONE);
+                ivMessageImage.setVisibility(View.GONE);
+                tvMessage.setVisibility(View.VISIBLE);
                 
                 if (isSentByMe) {
                     params.gravity = Gravity.END;
@@ -153,9 +155,25 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 
             } else {
                 // NORMAL MESSAGE UI
-                tvMessage.setText(message.text);
-                tvMessage.setTypeface(null, Typeface.NORMAL);
-
+                
+                // STICKER OR TEXT DISPLAY
+                if (message.imageUrl != null && !message.imageUrl.isEmpty()) {
+                    // Hiển thị sticker
+                    ivMessageImage.setVisibility(View.VISIBLE);
+                    tvMessage.setVisibility(View.GONE);
+                    
+                    Glide.with(itemView.getContext())
+                            .load(message.imageUrl)
+                            .placeholder(R.drawable.ic_person_circle)
+                            .into(ivMessageImage);
+                } else {
+                    // Hiển thị text
+                    ivMessageImage.setVisibility(View.GONE);
+                    tvMessage.setVisibility(View.VISIBLE);
+                    tvMessage.setText(message.text);
+                    tvMessage.setTypeface(null, Typeface.NORMAL);
+                }
+                
                 if (isSentByMe) {
                     params.gravity = Gravity.END;
                     messageContainer.setBackgroundResource(R.drawable.bg_message_sent);
@@ -199,15 +217,28 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 }
 
                 // SELF-DESTRUCT TIMER DISPLAY
-                if (message.expiresAt != null && message.expiresAt > System.currentTimeMillis()) {
-                    long remainingMs = message.expiresAt - System.currentTimeMillis();
-                    String timerText = formatTimer(remainingMs);
-                    tvTimer.setText("⏱️ " + timerText);
-                    tvTimer.setVisibility(View.VISIBLE);
+                if (message.selfDestructDuration != null && message.selfDestructDuration > 0) {
+                    if (message.expiresAt != null && message.expiresAt > 0) {
+                        // Timer đã bắt đầu → Hiển thị countdown
+                        long remainingMs = message.expiresAt - System.currentTimeMillis();
+                        if (remainingMs > 0) {
+                            String timerText = formatTimer(remainingMs);
+                            tvTimer.setText("⏱️ " + timerText);
+                            tvTimer.setVisibility(View.VISIBLE);
+                        } else {
+                            tvTimer.setVisibility(View.GONE);
+                        }
+                    } else {
+                        // Timer chưa bắt đầu (người nhận chưa xem)
+                        // Hiển thị label tĩnh
+                        String durationText = formatDuration(message.selfDestructDuration);
+                        tvTimer.setText("⏱️ " + durationText);
+                        tvTimer.setVisibility(View.VISIBLE);
+                    }
                 } else {
                     tvTimer.setVisibility(View.GONE);
                 }
-
+                
                 // LONG-PRESS LISTENER
                 if (listener != null) {
                     messageContainer.setOnLongClickListener(v -> {
@@ -230,6 +261,8 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         void bind(Message message) {
             if (message.timestamp != null) {
                 tvTimestamp.setText(formatTimestamp(message.timestamp.toDate()));
+            } else {
+                tvTimestamp.setText("Vừa xong");
             }
         }
 
@@ -247,6 +280,22 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             return (seconds / 60) + "m";
         } else {
             return (seconds / 3600) + "h";
+        }
+    }
+    
+    private static String formatDuration(long durationMs) {
+        long seconds = durationMs / 1000;
+        if (seconds < 60) {
+            return seconds + "s";
+        } else if (seconds < 3600) {
+            long minutes = seconds / 60;
+            return minutes + "m";
+        } else if (seconds < 86400) {
+            long hours = seconds / 3600;
+            return hours + "h";
+        } else {
+            long days = seconds / 86400;
+            return days + "d";
         }
     }
 }
