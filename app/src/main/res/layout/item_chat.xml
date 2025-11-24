@@ -13,15 +13,28 @@
         android:layout_alignParentStart="true"
         android:layout_centerVertical="true">
 
-        <ImageView
-            android:id="@+id/ivAvatar"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:layout_gravity="center"
-            android:background="@drawable/circle_border"
-            android:padding="2dp"
-            android:scaleType="centerCrop" />
-
+            <!-- ✅ THAY ĐOẠN TRÊN BẰNG ĐOẠN NÀY -->
+        <FrameLayout
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:layout_marginEnd="12dp">
+    
+            <ImageView
+                android:id="@+id/ivAvatar"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@drawable/ic_person_circle"
+                android:scaleType="centerCrop"/>
+    
+            <!-- Green Dot Indicator -->
+            <View
+                android:id="@+id/vActiveIndicator"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:layout_gravity="bottom|end"
+                android:background="@drawable/bg_active_indicator"
+                android:visibility="gone"/>
+        </FrameLayout>
         <!-- Chữ cái đầu khi không có avatar -->
         <TextView
             android:id="@+id/tvInitial"

@@ -24,14 +24,29 @@
             android:tint="#FFFFFF"
             android:contentDescription="Back" />
 
-        <ImageView
-            android:id="@+id/ivFriendAvatar"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:layout_centerVertical="true"
-            android:layout_toStartOf="@id/tvFriendName"
-            android:layout_marginEnd="8dp"
-            android:contentDescription="Avatar" />
+        <!-- ✅ THAY ĐOẠN TRÊN BẰNG ĐOẠN NÀY -->
+        <FrameLayout
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_toEndOf="@id/btnBack" 
+            android:layout_marginEnd="8dp">
+    
+            <ImageView
+                android:id="@+id/ivFriendAvatar"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@drawable/ic_person_circle"
+                android:scaleType="centerCrop"/>
+    
+            <!-- Green Dot Indicator -->
+            <View
+                android:id="@+id/vFriendActiveIndicator"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:layout_gravity="bottom|end"
+                android:background="@drawable/bg_active_indicator"
+                android:visibility="gone"/>
+        </FrameLayout>
 
         <TextView
             android:id="@+id/tvFriendName"

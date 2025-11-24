@@ -85,7 +85,8 @@ public class CreatePasswordActivity extends AppCompatActivity {
                             userProfile.put("friends", new ArrayList<>());
                             userProfile.put("incomingRequests", new ArrayList<>());
                             userProfile.put("sentRequests", new ArrayList<>());
-                            
+                            userProfile.put("isActiveStatusEnabled", true);  // Mặc định BẬT
+                            userProfile.put("lastActive", FieldValue.serverTimestamp());
                             Log.d(TAG, "📝 Creating user profile with fields:");
                             Log.d(TAG, "   - UID: " + uid);
                             Log.d(TAG, "   - Email: " + email);

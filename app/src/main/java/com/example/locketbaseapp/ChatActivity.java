@@ -45,6 +45,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.Date;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.firebase.Timestamp;
+import android.content.SharedPreferences;
 public class ChatActivity extends AppCompatActivity {
     private static final String TAG = "ChatActivity";
     private RecyclerView rvMessages;
@@ -52,6 +54,7 @@ public class ChatActivity extends AppCompatActivity {
     private ImageButton btnSend, btnBack, btnMenu, btnSticker, btnSelfDestruct;
     private ImageView ivFriendAvatar;
     private TextView tvFriendName;
+    private View vFriendActiveIndicator;
     private MessageAdapter adapter;
     private List<Message> messageList = new ArrayList<>();
     private FirebaseFirestore db;
@@ -125,6 +128,9 @@ public class ChatActivity extends AppCompatActivity {
             rvMessages = findViewById(R.id.rvMessages);
             etMessage = findViewById(R.id.etMessage);
             btnSend = findViewById(R.id.btnSend);
+            vFriendActiveIndicator = findViewById(R.id.vFriendActiveIndicator);
+            updateMyLastActive();
+            listenToFriendActiveStatus();
             btnBack.setOnClickListener(v -> finish());
             btnMenu.setOnClickListener(v -> showMenuDialog());
             btnSticker.setOnClickListener(v -> showStickerPicker());
@@ -756,7 +762,7 @@ private void sendStickerMessage(com.example.locketbaseapp.model.Sticker sticker)
                 Toast.makeText(this, "Lỗi gửi sticker", Toast.LENGTH_SHORT).show();
                 Log.e(TAG, "❌ Error sending sticker", e);
             });
-}
+    }
     // ═══════════════════════════════════════════════════════════════
     // 🔥 FIREBASE BATCH OPERATIONS
     // ═══════════════════════════════════════════════════════════════
@@ -889,4 +895,53 @@ private void sendStickerMessage(com.example.locketbaseapp.model.Sticker sticker)
             messageExecutor.shutdown();
         }
     }
+    private void updateMyLastActive() {
+        // Check if active status is enabled
+        SharedPreferences prefs = getSharedPreferences("active_status_prefs", MODE_PRIVATE);
+        boolean isEnabled = prefs.getBoolean("enabled", true);
+    
+        if (!isEnabled) return;
+    
+        FirebaseFirestore.getInstance()
+            .collection("users")
+            .document(currentUserId)
+            .update("lastActive", FieldValue.serverTimestamp());
+    }
+    private void listenToFriendActiveStatus() {
+        // Get my status first
+        FirebaseFirestore.getInstance()
+            .collection("users")
+            .document(currentUserId)
+            .addSnapshotListener((myDoc, error) -> {
+            if (myDoc != null && myDoc.exists()) {
+                Boolean myStatusEnabled = myDoc.getBoolean("isActiveStatusEnabled");
+                
+                // Listen to friend's status
+                FirebaseFirestore.getInstance()
+                    .collection("users")
+                    .document(friendId)
+                    .addSnapshotListener((friendDoc, e) -> {
+                        if (friendDoc != null && friendDoc.exists()) {
+                            Boolean friendStatusEnabled = friendDoc.getBoolean("isActiveStatusEnabled");
+                            Timestamp lastActive = friendDoc.getTimestamp("lastActive");
+                            
+                            // Chỉ hiển thị nếu CẢ 2 đều bật
+                            boolean shouldShow = Boolean.TRUE.equals(friendStatusEnabled) 
+                                && Boolean.TRUE.equals(myStatusEnabled)
+                                && lastActive != null
+                                && isOnline(lastActive);
+                            
+                            vFriendActiveIndicator.setVisibility(shouldShow ? View.VISIBLE : View.GONE);
+                        }
+                    });
+            }
+        });
+    }
+    private boolean isOnline(Timestamp lastActive) {
+        long now = System.currentTimeMillis();
+        long lastActiveTime = lastActive.toDate().getTime();
+        long diff = now - lastActiveTime;
+        return diff < (5 * 60 * 1000); // 5 minutes
+    }
+
 }

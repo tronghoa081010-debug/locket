@@ -14,7 +14,9 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-
+import com.google.firebase.Timestamp;
+import com.google.firebase.firestore.FirebaseFirestore;
+import android.view.View;
 public class ChatListAdapter extends RecyclerView.Adapter<ChatListAdapter.ViewHolder> {
 
     private List<Chat> chats;
@@ -77,10 +79,48 @@ public class ChatListAdapter extends RecyclerView.Adapter<ChatListAdapter.ViewHo
         } else {
             holder.tvTime.setVisibility(View.GONE);
         }
-
+        // Fetch friend's active status
+        FirebaseFirestore.getInstance()
+            .collection("users")
+            .document(chat.friendId)
+            .get()
+            .addOnSuccessListener(doc -> {
+            if (doc.exists()) {
+                Boolean friendStatusEnabled = doc.getBoolean("isActiveStatusEnabled");
+                Timestamp lastActive = doc.getTimestamp("lastActive");
+                
+                // Lấy current user's status
+                // Lưu ý: Để tối ưu, nên truyền currentUserId vào Adapter hoặc lấy từ FirebaseAuth
+                String currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().getCurrentUser().getUid();
+                
+                FirebaseFirestore.getInstance()
+                    .collection("users")
+                    .document(currentUserId)
+                    .get()
+                    .addOnSuccessListener(myDoc -> {
+                        Boolean myStatusEnabled = myDoc.getBoolean("isActiveStatusEnabled");
+                        
+                        // Chỉ hiển thị nếu CẢ 2 đều bật
+                        boolean shouldShow = Boolean.TRUE.equals(friendStatusEnabled) 
+                            && Boolean.TRUE.equals(myStatusEnabled)
+                            && lastActive != null
+                            && isOnline(lastActive);
+                        
+                        if (holder.vActiveIndicator != null) {
+                            holder.vActiveIndicator.setVisibility(shouldShow ? View.VISIBLE : View.GONE);
+                        }
+                    });
+            }
+        });
         holder.itemView.setOnClickListener(v -> listener.onChatClick(chat));
     }
-
+    // ✅ THÊM HELPER METHOD NÀY (sau method onBindViewHolder)
+    private boolean isOnline(Timestamp lastActive) {
+        long now = System.currentTimeMillis();
+        long lastActiveTime = lastActive.toDate().getTime();
+        long diff = now - lastActiveTime;
+        return diff < (5 * 60 * 1000); // 5 minutes
+    }
     @Override
     public int getItemCount() {
         return chats.size();
@@ -110,7 +150,7 @@ public class ChatListAdapter extends RecyclerView.Adapter<ChatListAdapter.ViewHo
     static class ViewHolder extends RecyclerView.ViewHolder {
         ImageView ivAvatar;
         TextView tvName, tvLastMessage, tvTime, tvInitial;
-
+        View vActiveIndicator;
         ViewHolder(View itemView) {
             super(itemView);
             ivAvatar = itemView.findViewById(R.id.ivAvatar);
@@ -118,6 +158,7 @@ public class ChatListAdapter extends RecyclerView.Adapter<ChatListAdapter.ViewHo
             tvLastMessage = itemView.findViewById(R.id.tvLastMessage);
             tvTime = itemView.findViewById(R.id.tvTime);
             tvInitial = itemView.findViewById(R.id.tvInitial);
+            vActiveIndicator = itemView.findViewById(R.id.vActiveIndicator);
         }
     }
 }

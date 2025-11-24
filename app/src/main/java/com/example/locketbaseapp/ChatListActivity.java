@@ -19,7 +19,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
+import android.widget.PopupMenu;
+import android.view.MenuItem;
+import android.content.SharedPreferences;
+import com.google.firebase.firestore.FieldValue;
+import java.util.HashMap;
+import java.util.Map;
 public class ChatListActivity extends AppCompatActivity {
 
     private static final String TAG = "ChatListActivity";
@@ -30,7 +35,12 @@ public class ChatListActivity extends AppCompatActivity {
     private FirebaseFirestore db;
     private String currentUserId;
     private ImageButton btnBack;
-
+    private ImageButton btnMore;
+    private boolean isActiveStatusEnabled = false;
+    private SharedPreferences activeStatusPrefs;
+    private static final String PREF_ACTIVE_STATUS = "active_status_prefs";
+    private static final String KEY_ACTIVE_STATUS_ENABLED = "enabled";
+    
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -65,7 +75,17 @@ public class ChatListActivity extends AppCompatActivity {
 
             btnBack = findViewById(R.id.btnBack);
             rvChatList = findViewById(R.id.rvChatList);
-
+            // Initialize Active Status
+            btnMore = findViewById(R.id.btnMore);
+            activeStatusPrefs = getSharedPreferences(PREF_ACTIVE_STATUS, MODE_PRIVATE);
+            isActiveStatusEnabled = activeStatusPrefs.getBoolean(KEY_ACTIVE_STATUS_ENABLED, true);
+            if (btnMore != null) {
+                btnMore.setOnClickListener(v -> showActiveStatusMenu());
+            }
+            // Update active status in Firestore
+            if (isActiveStatusEnabled) {
+                updateLastActive();
+            }
             if (btnBack == null) {
                 Log.e(TAG, "❌ btnBack is null!");
             } else {
@@ -328,4 +348,59 @@ public class ChatListActivity extends AppCompatActivity {
         Log.d(TAG, "onDestroy() called");
         Log.d(TAG, "═══════════════════════════════════════");
     }
+    private void showActiveStatusMenu() {
+    PopupMenu popup = new PopupMenu(this, btnMore);
+    popup.getMenuInflater().inflate(R.menu.menu_chatlist, popup.getMenu());
+    
+    // Set checked state
+    MenuItem statusItem = popup.getMenu().findItem(R.id.menu_active_status);
+    statusItem.setChecked(isActiveStatusEnabled);
+    
+    popup.setOnMenuItemClickListener(item -> {
+        if (item.getItemId() == R.id.menu_active_status) {
+            toggleActiveStatus();
+            return true;
+        }
+        return false;
+    });
+    
+    popup.show();
+    }
+    private void toggleActiveStatus() {
+        isActiveStatusEnabled = !isActiveStatusEnabled;
+    
+        // Save to SharedPreferences
+        activeStatusPrefs.edit()
+            .putBoolean(KEY_ACTIVE_STATUS_ENABLED, isActiveStatusEnabled)
+            .apply();
+    
+        // Update Firestore
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("isActiveStatusEnabled", isActiveStatusEnabled);
+    
+        if (isActiveStatusEnabled) {
+            updates.put("lastActive", FieldValue.serverTimestamp());
+        }
+    
+        FirebaseFirestore.getInstance()
+            .collection("users")
+            .document(currentUserId)
+            .update(updates)
+            .addOnSuccessListener(aVoid -> {
+                String message = isActiveStatusEnabled 
+                    ? "Đã bật trạng thái hoạt động" 
+                    : "Đã tắt trạng thái hoạt động";
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+            });
+        }
+    
+    private void updateLastActive() {
+        if (!isActiveStatusEnabled) return;
+    
+        FirebaseFirestore.getInstance()
+            .collection("users")
+            .document(currentUserId)
+            .update("lastActive", FieldValue.serverTimestamp());
+    }
+    
 }
